@@ -1,6 +1,8 @@
+from typing import List
 from fastapi import APIRouter, Query
 from typing_extensions import Annotated
-from app.schemas.user_schema import UserCreate
+from app.models.user_model import UserModel
+from app.schemas.user_schema import UserCreate, UserRead
 from app.services.user_service import UserService
 
 router = APIRouter(prefix="/users", tags=["users"])
