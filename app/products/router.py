@@ -24,7 +24,7 @@ def get_products(
 
 @router.get("/{product_id}", response_model=schemas.ProductResponse)
 def get_product(product_id: int, db: Session = Depends(get_db)):
-    return service.get_by_id(product_id, db)
+    return service.get_by_id(db, product_id)
 
 
 @router.post("/", response_model=schemas.ProductResponse, status_code=201)

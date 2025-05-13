@@ -3,6 +3,7 @@ from sqlalchemy import asc, desc
 from sqlalchemy.orm import Session
 from fastapi import HTTPException
 
+from app.core.exceptions import NotFoundException
 from app.products.models import Product
 from app.products.schemas import ProductCreate
 
@@ -13,7 +14,7 @@ def get_products(
     limit: int = 10,
     search: str | None = None,
     order_by: str = "id",
-    order_dir: str = "asc"
+    order_dir: str = "asc",
 ) -> tuple[List[Product], int]:
     query = db.query(Product)
 
@@ -33,10 +34,10 @@ def get_products(
     return products, total
 
 
-def get_by_id(product_id: int, db: Session) -> Product:
-    product = db.query(Product).filter(Product.id == product_id).first()
+def get_by_id(db: Session, product_id: int) -> Product:
+    product = db.query(Product).filter_by(id=product_id).first()
     if not product:
-        raise HTTPException(status_code=404, detail="Producto no encontrado")
+        raise NotFoundException(f"Product with ID {product_id} not found")
     return product
 
 

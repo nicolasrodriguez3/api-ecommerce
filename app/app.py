@@ -1,20 +1,21 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
+from fastapi.responses import JSONResponse
+from app.core.exceptions import NotFoundException
 from app.products.router import router as products_router
 from app.categories.router import router as categories_router
 from app.core.database import Base, engine
 
 
-def create_app() -> FastAPI:
-    app = FastAPI(title="Ecommerce API")
+app = FastAPI(title="Ecommerce API")
 
-    # Crear tablas
-    Base.metadata.create_all(bind=engine)
+# Crear tablas
+Base.metadata.create_all(bind=engine)
 
-    # Incluir routers
-    app.include_router(products_router)
-    app.include_router(categories_router)
-
-    return app
+# Incluir routers
+app.include_router(products_router)
+app.include_router(categories_router)
 
 
-app = create_app()
+@app.exception_handler(NotFoundException)
+async def not_found_exception_handler(request: Request, exc: NotFoundException):
+    return JSONResponse(status_code=exc.status_code, content={"error": exc.detail})
