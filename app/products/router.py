@@ -1,0 +1,40 @@
+from fastapi import APIRouter, Depends, Query
+from sqlalchemy.orm import Session
+from app.core.database import get_db
+from app.products import schemas, service
+
+router = APIRouter(prefix="/products", tags=["products"])
+
+
+@router.get("/", response_model=schemas.PaginatedProductResponse)
+def get_products(
+    skip: int = Query(0, ge=0),
+    limit: int = Query(10, ge=1, le=100),
+    db: Session = Depends(get_db)
+):
+    print(f"Skip: {skip}, Limit: {limit}")
+    products, total = service.get_products(db, skip=skip, limit=limit)
+    print(f"Products: {products}")
+    return {"data": products, "total": total}
+
+
+@router.get("/{product_id}", response_model=schemas.ProductResponse)
+def get_product(product_id: int, db: Session = Depends(get_db)):
+    return service.get_by_id(product_id, db)
+
+
+@router.post("/", response_model=schemas.ProductResponse, status_code=201)
+def create_product(product: schemas.ProductCreate, db: Session = Depends(get_db)):
+    return service.create(product, db)
+
+
+@router.put("/{product_id}", response_model=schemas.ProductResponse)
+def update_product(
+    product_id: int, updated_data: schemas.ProductCreate, db: Session = Depends(get_db)
+):
+    return service.update(product_id, updated_data, db)
+
+
+@router.delete("/{product_id}", status_code=204)
+def delete_product(product_id: int, db: Session = Depends(get_db)):
+    service.delete(product_id, db)

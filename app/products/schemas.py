@@ -1,20 +1,30 @@
 from datetime import datetime
+from typing import List
 from pydantic import BaseModel
+from app.categories.schemas import CategoryBase
 
 
-# Este se usa para crear o actualizar un producto
-class ProductCreate(BaseModel):
+class ProductBase(BaseModel):
     name: str
-    description: str | None = None
     price: float
+    category_id: int
+
+
+class ProductCreate(ProductBase):
+    description: str | None = None
     stock: int = 0
 
 
-# Este se usa para devolver un producto (incluye el id)
-class ProductRead(ProductCreate):
+class ProductResponse(ProductCreate):
     id: int
+    category: CategoryBase
     created_at: datetime
     updated_at: datetime
 
     class Config:
-        from_attributes = True  # permite convertir desde un ORM model
+        from_attributes = True
+
+
+class PaginatedProductResponse(BaseModel):
+    data: List[ProductResponse]
+    total: int

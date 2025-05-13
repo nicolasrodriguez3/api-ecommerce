@@ -1,5 +1,5 @@
 from fastapi import FastAPI
-from app.products.routers import router as products_router
+from app.products.router import router as products_router
 from app.core.database import Base, engine
 
 def create_app() -> FastAPI:
