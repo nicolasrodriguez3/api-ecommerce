@@ -1,4 +1,5 @@
 from typing import List
+from sqlalchemy import asc, desc
 from sqlalchemy.orm import Session
 from fastapi import HTTPException
 
@@ -7,15 +8,28 @@ from app.products.schemas import ProductCreate
 
 
 def get_products(
-    db: Session, skip: int = 0, limit: int = 10, search: str | None = None
+    db: Session,
+    skip: int = 0,
+    limit: int = 10,
+    search: str | None = None,
+    order_by: str = "id",
+    order_dir: str = "asc"
 ) -> tuple[List[Product], int]:
     query = db.query(Product)
 
     if search:
         query = query.filter(Product.name.ilike(f"%{search}%"))
 
-    total = query.count()
-    products = query.offset(skip).limit(limit).all()
+    # Verificar que el campo sea válido
+    if hasattr(Product, order_by):
+        column = getattr(Product, order_by)
+        if order_dir.lower() == "desc":
+            query = query.order_by(desc(column))
+        else:
+            query = query.order_by(asc(column))
+
+    total: int = query.count()
+    products: List[Product] = query.offset(skip).limit(limit).all()
     return products, total
 
 

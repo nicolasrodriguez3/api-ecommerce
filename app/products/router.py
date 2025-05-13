@@ -11,9 +11,14 @@ def get_products(
     skip: int = Query(0, ge=0),
     limit: int = Query(10, ge=1, le=100),
     search: str | None = Query(None, max_length=50),
+    order_by: str = Query("id"),
+    order_dir: str = Query("asc", pattern="^(asc|desc)$"),
     db: Session = Depends(get_db)
 ):
-    products, total = service.get_products(db, skip=skip, limit=limit, search=search)
+    products, total = service.get_products(
+        db, skip=skip, limit=limit, search=search,
+        order_by=order_by, order_dir=order_dir
+    )
     return {"data": products, "total": total}
 
 
