@@ -7,9 +7,13 @@ from app.products.schemas import ProductCreate
 
 
 def get_products(
-    db: Session, skip: int = 0, limit: int = 10
-):
+    db: Session, skip: int = 0, limit: int = 10, search: str | None = None
+) -> tuple[List[Product], int]:
     query = db.query(Product)
+
+    if search:
+        query = query.filter(Product.name.ilike(f"%{search}%"))
+
     total = query.count()
     products = query.offset(skip).limit(limit).all()
     return products, total

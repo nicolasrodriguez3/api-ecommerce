@@ -10,11 +10,10 @@ router = APIRouter(prefix="/products", tags=["products"])
 def get_products(
     skip: int = Query(0, ge=0),
     limit: int = Query(10, ge=1, le=100),
+    search: str | None = Query(None, max_length=50),
     db: Session = Depends(get_db)
 ):
-    print(f"Skip: {skip}, Limit: {limit}")
-    products, total = service.get_products(db, skip=skip, limit=limit)
-    print(f"Products: {products}")
+    products, total = service.get_products(db, skip=skip, limit=limit, search=search)
     return {"data": products, "total": total}
 
 
