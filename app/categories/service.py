@@ -1,5 +1,6 @@
 from sqlalchemy.orm import Session
 from app.categories import models, schemas
+from app.core.exceptions import NotFoundException
 
 
 def create_category(
@@ -23,3 +24,10 @@ def get_categories(
     total = query.count()
     categories = query.offset(skip).limit(limit).all()
     return categories, total
+
+
+def get_category_by_id(db: Session, category_id: int) -> models.Category:
+    category = db.query(models.Category).filter_by(id=category_id).first()
+    if not category:
+        raise NotFoundException(f"Category with ID {category_id} not found")
+    return category
