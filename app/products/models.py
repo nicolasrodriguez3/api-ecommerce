@@ -1,5 +1,5 @@
 from sqlalchemy.orm import Mapped, mapped_column, relationship
-from sqlalchemy import String, DateTime, Float, ForeignKey
+from sqlalchemy import String, DateTime, Float, ForeignKey, Boolean
 from datetime import datetime
 from app.core.database import Base
 
@@ -13,7 +13,6 @@ class Product(Base):
     price: Mapped[float] = mapped_column(Float, nullable=False)
     stock: Mapped[int] = mapped_column(default=0)
     category_id: Mapped[int] = mapped_column(ForeignKey("categories.id"), nullable=False)
-    category: Mapped["Category"] = relationship(back_populates="products")
     created_at: Mapped[datetime] = mapped_column(
         DateTime, default=datetime.now
     )
@@ -22,3 +21,6 @@ class Product(Base):
         default=datetime.now,
         onupdate=datetime.now,
     )
+    is_active: Mapped[bool] = mapped_column(Boolean, default=True)
+    
+    category: Mapped["Category"] = relationship("Category", back_populates="products")

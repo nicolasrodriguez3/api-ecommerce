@@ -7,22 +7,26 @@ from app.categories.schemas import CategoryBase
 class ProductBase(BaseModel):
     name: str
     price: float
-    category_id: int
+    
+    model_config = {
+        "from_attributes": True,
+        "extra": "ignore",
+    }
 
 
 class ProductCreate(ProductBase):
     description: str | None = None
+    category_id: int
     stock: int = 0
 
 
-class ProductResponse(ProductCreate):
+class ProductResponse(ProductBase):
     id: int
+    description: str | None
+    stock: int
     category: CategoryBase
     created_at: datetime
     updated_at: datetime
-
-    class Config:
-        from_attributes = True
 
 
 class PaginatedProductResponse(BaseModel):

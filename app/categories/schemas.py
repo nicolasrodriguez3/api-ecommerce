@@ -6,6 +6,11 @@ from datetime import datetime
 class CategoryBase(BaseModel):
     name: str
 
+    model_config = {
+        "from_attributes": True,
+        "extra": "ignore",
+    }
+
 
 class CategoryCreate(CategoryBase):
     pass
@@ -15,9 +20,6 @@ class CategoryResponse(CategoryBase):
     id: int
     created_at: datetime
     updated_at: datetime
-
-    class Config:
-        from_attributes = True
 
 
 class PaginatedCategoryResponse(BaseModel):

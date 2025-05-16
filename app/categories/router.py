@@ -17,8 +17,7 @@ def get_categories(
     limit: int = Query(10, ge=1, le=100),
     db: Session = Depends(get_db),
 ):
-    categories, total = service.get_categories(db, skip=skip, limit=limit)
-    return {"data": categories, "total": total}
+    return service.get_categories(db, skip=skip, limit=limit)
 
 
 @router.get("/{category_id}", response_model=schemas.CategoryResponse)
