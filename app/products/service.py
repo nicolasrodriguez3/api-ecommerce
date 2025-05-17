@@ -4,9 +4,10 @@ from sqlalchemy.orm import Session, joinedload
 
 from app.categories.models import Category
 from app.core.exceptions import BadRequestException, NotFoundException
-from app.products.models import Product
+from app.products.models import Product, StockHistory
 from app.products.schemas import ProductCreate
 from app.products.schemas import ProductResponse
+
 
 def get_products(
     db: Session,
@@ -16,7 +17,11 @@ def get_products(
     order_by: str = "id",
     order_dir: str = "asc",
 ) -> tuple[List[ProductResponse], int]:
-    query = db.query(Product).filter(Product.is_active.is_(True)).options(joinedload(Product.category))
+    query = (
+        db.query(Product)
+        .filter(Product.is_active.is_(True))
+        .options(joinedload(Product.category))
+    )
 
     if search:
         query = query.filter(Product.name.ilike(f"%{search}%"))
@@ -32,14 +37,14 @@ def get_products(
 
     total: int = query.count()
     products: List[Product] = query.offset(skip).limit(limit).all()
-    
+
     result = [ProductResponse.model_validate(p) for p in products]
     return result, total
 
 
 def get_by_id(db: Session, product_id: int) -> ProductResponse:
     product = _get_one_product(db, product_id)
-    
+
     return ProductResponse.model_validate(product)
 
 
@@ -50,13 +55,17 @@ def create(product_data: ProductCreate, db: Session) -> ProductResponse:
     db.add(new_product)
     db.commit()
     db.refresh(new_product)
-    
-    product_with_category = db.query(Product).options(joinedload(Product.category)).get(new_product.id)
-    
+
+    product_with_category = (
+        db.query(Product).options(joinedload(Product.category)).get(new_product.id)
+    )
+
     return ProductResponse.model_validate(product_with_category)
 
 
-def update(product_id: int, product_data: ProductCreate, db: Session) -> ProductResponse:
+def update(
+    product_id: int, product_data: ProductCreate, db: Session
+) -> ProductResponse:
     product = _get_one_product(db, product_id)
 
     # Validar categoría
@@ -67,17 +76,63 @@ def update(product_id: int, product_data: ProductCreate, db: Session) -> Product
 
     db.commit()
     db.refresh(product)
-    
-    product_with_category = db.query(Product).options(joinedload(Product.category)).get(product.id)
+
+    product_with_category = (
+        db.query(Product).options(joinedload(Product.category)).get(product.id)
+    )
 
     return ProductResponse.model_validate(product_with_category)
 
 
 def delete(product_id: int, db: Session) -> None:
     product = _get_one_product(db, product_id)
-    
+
     product.is_active = False
     db.commit()
+
+
+def restore(product_id: int, db: Session) -> ProductResponse:
+    product = _get_one_product(db, product_id, include_inactives=True)
+
+    product.is_active = True
+    db.commit()
+    db.refresh(product)
+
+    return ProductResponse.model_validate(product)
+
+
+def update_stock(db: Session, product_id: int, new_stock: int) -> ProductResponse:
+    if new_stock < 0:
+        raise BadRequestException("Stock cannot be negative")
+
+    product = _get_one_product(db, product_id)
+    product.stock = new_stock
+    db.commit()
+    db.refresh(product)
+
+    return ProductResponse.model_validate(product)
+
+
+def adjust_stock(db: Session, product_id: int, quantity: int, reason: str = "Manual") -> ProductResponse:
+    product = _get_one_product(db, product_id)
+
+    new_stock: int = product.stock + quantity
+    if new_stock < 0:
+        raise BadRequestException("Not enough stock to complete this operation")
+
+    product.stock = new_stock
+    
+    history = StockHistory(
+        product_id=product.id,
+        quantity=quantity,
+        reason=reason,
+    )
+    db.add(history)
+
+    db.commit()
+    db.refresh(product)
+
+    return ProductResponse.model_validate(product)
 
 
 def _get_category_or_400(db: Session, category_id: int) -> Category:
@@ -86,8 +141,15 @@ def _get_category_or_400(db: Session, category_id: int) -> Category:
         raise BadRequestException(f"Category with ID {category_id} does not exist")
     return category
 
-def _get_one_product(db: Session, product_id: int) -> Product:
-    product = db.query(Product).filter_by(id=product_id, is_active=True).first()
+
+def _get_one_product(
+    db: Session, product_id: int, include_inactives: bool = False
+) -> Product:
+    if include_inactives:
+        product = db.query(Product).filter_by(id=product_id).first()
+    else:
+        product = db.query(Product).filter_by(id=product_id, is_active=True).first()
+
     if not product:
         raise NotFoundException(f"Product with ID {product_id} not found")
     return product

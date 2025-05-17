@@ -7,7 +7,7 @@ from app.categories.schemas import CategoryBase
 class ProductBase(BaseModel):
     name: str
     price: float
-    
+
     model_config = {
         "from_attributes": True,
         "extra": "ignore",
@@ -32,3 +32,21 @@ class ProductResponse(ProductBase):
 class PaginatedProductResponse(BaseModel):
     data: List[ProductResponse]
     total: int
+
+
+class StockUpdate(BaseModel):
+    stock: int
+
+class StockAdjustment(BaseModel):
+    quantity: int
+
+class StockHistoryResponse(BaseModel):
+    id: int
+    quantity: int
+    reason: str
+    created_at: datetime
+    
+    model_config = {
+        "from_attributes": True,
+        "extra": "ignore",
+    }

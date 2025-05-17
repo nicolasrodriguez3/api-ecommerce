@@ -1,9 +1,11 @@
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
+
 from app.core.exceptions import BadRequestException, ConflictException, NotFoundException
+from app.core.database import Base, engine
 from app.products.router import router as products_router
 from app.categories.router import router as categories_router
-from app.core.database import Base, engine
+from app.stock.router import router as stock_router
 
 
 app = FastAPI(title="Ecommerce API")
@@ -11,9 +13,10 @@ app = FastAPI(title="Ecommerce API")
 # Crear tablas
 Base.metadata.create_all(bind=engine)
 
-# Incluir routers
+# Routers
 app.include_router(products_router)
 app.include_router(categories_router)
+app.include_router(stock_router)
 
 
 @app.exception_handler(NotFoundException)
