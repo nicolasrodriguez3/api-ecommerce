@@ -8,6 +8,8 @@ class Settings(BaseSettings):
     port: int = 8000
     reload: bool = True
     database_url: str = "sqlite:///./ecommerce.db"
+    jwt_secret: str = "your_secret_key"
+    jwt_algorithm: str = "HS256"
 
     class Config:
         env_file = ".env"
