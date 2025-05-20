@@ -1,8 +1,10 @@
-from typing import List
+from typing import Annotated, List
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy.orm import Session
+from app.auth.dependencies import require_roles
 from app.core.database import get_db
 from app.core.exceptions import BadRequestException
+from app.enums.roles import RoleEnum
 from app.products import service
 from app.products.schemas import (
     ProductResponse,
@@ -12,6 +14,7 @@ from app.products.schemas import (
     StockHistoryResponse,
     StockUpdate,
 )
+from app.users.models import User
 
 router = APIRouter(prefix="/products", tags=["products"])
 
@@ -42,7 +45,7 @@ def get_product(product_id: int, db: Session = Depends(get_db)):
 
 
 @router.post("/", response_model=ProductResponse, status_code=201)
-def create_product(product: ProductCreate, db: Session = Depends(get_db)):
+def create_product(current_user: Annotated[User, Depends(require_roles(RoleEnum.admin))], product: ProductCreate, db: Session = Depends(get_db) ):
     return service.create(product, db)
 
 
@@ -92,5 +95,3 @@ def decrease_stock(
     if data.quantity <= 0:
         raise BadRequestException("Quantity must be greater than 0")
     return service.adjust_stock(db, product_id, -data.quantity)
-
-
