@@ -17,3 +17,8 @@ class UserResponse(UserBase):
     model_config = {
         "from_attributes": True
     }
+
+class UserUpdate(BaseModel):
+    username: str | None = None
+    email: EmailStr | None = None
+    is_active: bool | None = None

@@ -1,7 +1,8 @@
 from sqlalchemy.orm import Session
 from app.roles.models import Role
+from app.users.roles import RoleEnum
 
-DEFAULT_ROLES = ["admin", "jefe", "empleado", "cliente"]
+DEFAULT_ROLES = RoleEnum.__members__.values()
 
 def init_roles(db: Session):
     for role_name in DEFAULT_ROLES:

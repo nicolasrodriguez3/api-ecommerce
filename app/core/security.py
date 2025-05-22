@@ -1,7 +1,7 @@
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from fastapi import Depends
 from fastapi.security import OAuth2PasswordBearer
-from jose import JWTError, jwt
+from jose import ExpiredSignatureError, JWTError, jwt
 from passlib.context import CryptContext
 from app.core.config import get_settings
 from app.core.database import get_db
@@ -14,17 +14,37 @@ oauth2_scheme = OAuth2PasswordBearer(tokenUrl="auth/login")
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 SECRET_KEY = settings.jwt_secret
-ALGORITHM = "HS256"
-ACCESS_TOKEN_EXPIRE_MINUTES = 30
+ALGORITHM = settings.jwt_algorithm
+ACCESS_TOKEN_EXPIRE_MINUTES = settings.access_token_expire_minutes
 
 
 def create_access_token(data: dict, expires_delta: timedelta | None = None):
     to_encode = data.copy()
-    expire = datetime.utcnow() + (
+    expire = datetime.now(timezone.utc) + (
         expires_delta or timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
     )
     to_encode.update({"exp": expire})
     return jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
+
+
+def create_token_pair(user_id: int):
+    access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+    refresh_token_expires = timedelta(days=7)
+
+    access_token = create_access_token(
+        data={"sub": str(user_id)}, expires_delta=access_token_expires
+    )
+
+    refresh_token = create_access_token(
+        data={"sub": str(user_id), "type": "refresh"},
+        expires_delta=refresh_token_expires,
+    )
+
+    return {
+        "access_token": access_token,
+        "refresh_token": refresh_token,
+        "token_type": "bearer",
+    }
 
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
@@ -41,6 +61,8 @@ def decode_token(token: str) -> dict:
             token, settings.jwt_secret, algorithms=[settings.jwt_algorithm]
         )
         return payload
+    except ExpiredSignatureError:
+        raise UnauthorizedException("Token has expired")
     except JWTError:
         raise UnauthorizedException("Could not validate credentials")
 
