@@ -4,7 +4,6 @@ from sqlalchemy.orm import Session
 from app.auth.dependencies import require_roles
 from app.core.database import get_db
 from app.core.exceptions import BadRequestException
-from app.enums.roles import RoleEnum
 from app.products import service
 from app.products.schemas import (
     ProductResponse,
@@ -15,6 +14,7 @@ from app.products.schemas import (
     StockUpdate,
 )
 from app.users.models import User
+from app.users.roles import RoleEnum
 
 router = APIRouter(prefix="/products", tags=["products"])
 

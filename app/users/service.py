@@ -1,8 +1,5 @@
 from fastapi import Depends
-from fastapi.security import OAuth2PasswordBearer
-from jose import JWTError
 from sqlalchemy.orm import Session
-from app.auth.dependencies import decode_token
 from app.core.database import get_db
 from app.users.models import User
 from app.users.schemas import UserCreate, UserResponse
