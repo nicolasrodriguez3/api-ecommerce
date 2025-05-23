@@ -35,7 +35,8 @@ def register_new_user(user: UserCreate, db: Session = Depends(get_db)):
     return service_create_user(db=db, user_data=user)
 
 
-@router.get("/", response_model=List[UserResponse])
+# @router.get("/", response_model=List[UserResponse])
+@router.get("/")
 def read_users_list(
     skip: int = 0,
     limit: int = 100,

@@ -114,6 +114,9 @@ def update_stock(db: Session, product_id: int, new_stock: int) -> ProductRespons
 
 
 def adjust_stock(db: Session, product_id: int, quantity: int, reason: str = "Manual") -> ProductResponse:
+    if quantity == 0:
+        raise BadRequestException("Adjustment quantity cannot be zero. No change made to stock.")
+
     product = _get_one_product(db, product_id)
 
     new_stock: int = product.stock + quantity

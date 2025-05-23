@@ -45,7 +45,11 @@ def get_product(product_id: int, db: Session = Depends(get_db)):
 
 
 @router.post("/", response_model=ProductResponse, status_code=201)
-def create_product(current_user: Annotated[User, Depends(require_roles(RoleEnum.admin))], product: ProductCreate, db: Session = Depends(get_db) ):
+def create_product(
+    current_user: Annotated[User, Depends(require_roles(RoleEnum.admin))],
+    product: ProductCreate,
+    db: Session = Depends(get_db),
+):
     return service.create(product, db)
 
 
@@ -57,41 +61,20 @@ def update_product(
 
 
 @router.delete("/{product_id}", status_code=204)
-def delete_product(product_id: int, db: Session = Depends(get_db)):
+def delete_product(
+    product_id: int,
+    current_user: Annotated[User, Depends(require_roles(RoleEnum.admin))],
+    db: Session = Depends(get_db),
+):
     service.delete(product_id, db)
 
 
 @router.patch("/{product_id}/restore", status_code=204)
-def restore_product(product_id: int, db: Session = Depends(get_db)):
+def restore_product(
+    product_id: int,
+    current_user: Annotated[User, Depends(require_roles(RoleEnum.admin))],
+    db: Session = Depends(get_db),
+):
     service.restore(product_id, db)
 
 
-@router.patch("/{product_id}/stock", response_model=ProductResponse)
-def update_stock(
-    product_id: int,
-    stock_data: StockUpdate,
-    db: Session = Depends(get_db),
-):
-    return service.update_stock(db, product_id, stock_data.stock)
-
-
-@router.patch("/{product_id}/increase-stock", response_model=ProductResponse)
-def increase_stock(
-    product_id: int,
-    data: StockAdjustment,
-    db: Session = Depends(get_db),
-) -> ProductResponse:
-    if data.quantity <= 0:
-        raise BadRequestException("Quantity must be greater than 0")
-    return service.adjust_stock(db, product_id, data.quantity)
-
-
-@router.patch("/{product_id}/decrease-stock", response_model=ProductResponse)
-def decrease_stock(
-    product_id: int,
-    data: StockAdjustment,
-    db: Session = Depends(get_db),
-) -> ProductResponse:
-    if data.quantity <= 0:
-        raise BadRequestException("Quantity must be greater than 0")
-    return service.adjust_stock(db, product_id, -data.quantity)

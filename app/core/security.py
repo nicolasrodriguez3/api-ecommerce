@@ -3,6 +3,7 @@ from fastapi import Depends
 from fastapi.security import OAuth2PasswordBearer
 from jose import ExpiredSignatureError, JWTError, jwt
 from passlib.context import CryptContext
+from app.auth.schemas import Token
 from app.core.config import get_settings
 from app.core.database import get_db
 from app.core.exceptions import UnauthorizedException
@@ -27,7 +28,7 @@ def create_access_token(data: dict, expires_delta: timedelta | None = None):
     return jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
 
 
-def create_token_pair(user_id: int):
+def create_token_pair(user_id: int) -> Token:
     access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
     refresh_token_expires = timedelta(days=7)
 
@@ -40,11 +41,11 @@ def create_token_pair(user_id: int):
         expires_delta=refresh_token_expires,
     )
 
-    return {
-        "access_token": access_token,
-        "refresh_token": refresh_token,
-        "token_type": "bearer",
-    }
+    return Token(
+        access_token=access_token,
+        refresh_token=refresh_token,
+        token_type="bearer",
+    )
 
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:

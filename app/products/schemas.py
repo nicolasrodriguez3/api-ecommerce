@@ -1,7 +1,7 @@
 from datetime import datetime
 from typing import List
 from pydantic import BaseModel
-from app.categories.schemas import CategoryBase
+from app.categories.schemas import CategoryResponse
 
 
 class ProductBase(BaseModel):
@@ -24,7 +24,7 @@ class ProductResponse(ProductBase):
     id: int
     description: str | None
     stock: int
-    category: CategoryBase
+    category: CategoryResponse
     created_at: datetime
     updated_at: datetime
 

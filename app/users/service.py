@@ -1,5 +1,5 @@
 from fastapi import Depends
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 from typing import List
 from datetime import datetime, timezone
 from app.core.database import get_db
@@ -40,12 +40,33 @@ def get_user(user_id: int, db: Session) -> UserResponse:
     if not user:
         raise NotFoundException(f"User with id {user_id} not found")
 
-    return UserResponse.model_validate(user)
+    return UserResponse(
+            id=user.id,
+            username=user.username,
+            email=user.email,
+            is_active=user.is_active,
+            created_at=user.created_at,
+            updated_at=user.updated_at,
+            role=user.role.name,
+        )
 
 
 def get_users(db: Session, skip: int = 0, limit: int = 100) -> List[UserResponse]:
-    users = db.query(User).offset(skip).limit(limit).all()
-    return [UserResponse.model_validate(user) for user in users]
+    users = (
+        db.query(User).options(joinedload(User.role)).offset(skip).limit(limit).all()
+    )
+    return [
+        UserResponse(
+            id=user.id,
+            username=user.username,
+            email=user.email,
+            is_active=user.is_active,
+            created_at=user.created_at,
+            updated_at=user.updated_at,
+            role=user.role.name,
+        )
+        for user in users
+    ]
 
 
 def update_user(db: Session, user_id: int, user_update: UserUpdate) -> UserResponse:

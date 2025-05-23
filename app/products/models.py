@@ -25,7 +25,7 @@ class Product(Base):
     )
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
 
-    category: Mapped["Category"] = relationship("Category", back_populates="products")
+    category: Mapped["Category"] = relationship("Category", back_populates="products") # type: ignore
     stock_history: Mapped[List["StockHistory"]] = relationship(
         back_populates="product", cascade="all, delete-orphan"
     )
