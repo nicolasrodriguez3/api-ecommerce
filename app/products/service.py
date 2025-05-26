@@ -6,7 +6,7 @@ from app.categories.models import Category
 from app.core.exceptions import BadRequestException, NotFoundException
 from app.products.models import Product, StockHistory
 from app.products.schemas import ProductCreate
-from app.products.schemas import ProductResponse
+from app.products.schemas import ProductPublicResponse
 
 
 def get_products(
@@ -14,17 +14,26 @@ def get_products(
     skip: int = 0,
     limit: int = 10,
     search: str | None = None,
+    min_price: float | None = None,
+    max_price: float | None = None,
     order_by: str = "id",
     order_dir: str = "asc",
-) -> tuple[List[ProductResponse], int]:
+) -> tuple[List[ProductPublicResponse], int, int]:
     query = (
         db.query(Product)
         .filter(Product.is_active.is_(True))
         .options(joinedload(Product.category))
+        .options(joinedload(Product.images))
     )
 
     if search:
         query = query.filter(Product.name.ilike(f"%{search}%"))
+
+    if min_price is not None:
+        query = query.filter(Product.price >= min_price)
+
+    if max_price is not None:
+        query = query.filter(Product.price <= max_price)
 
     ALLOWED_ORDER_FIELDS = {"id", "name", "price", "stock", "created_at"}
     if order_by not in ALLOWED_ORDER_FIELDS:
@@ -35,20 +44,23 @@ def get_products(
     column = getattr(Product, order_by)
     query = query.order_by(desc(column) if order_dir.lower() == "desc" else asc(column))
 
-    total: int = query.count()
     products: List[Product] = query.offset(skip).limit(limit).all()
+    total: int = query.count()
+    total_pages: int = total // limit + (1 if total % limit > 0 else 0)
+    page: int = skip // limit + 1
+    
 
-    result = [ProductResponse.model_validate(p) for p in products]
-    return result, total
+    result = [ProductPublicResponse.model_validate(p) for p in products]
+    return result, page, total_pages
 
 
-def get_by_id(db: Session, product_id: int) -> ProductResponse:
+def get_by_id(db: Session, product_id: int) -> ProductPublicResponse:
     product = _get_one_product(db, product_id)
 
-    return ProductResponse.model_validate(product)
+    return ProductPublicResponse.model_validate(product)
 
 
-def create(product_data: ProductCreate, db: Session) -> ProductResponse:
+def create(product_data: ProductCreate, db: Session) -> ProductPublicResponse:
     _get_category_or_400(db, product_data.category_id)
 
     new_product = Product(**product_data.model_dump())
@@ -60,12 +72,12 @@ def create(product_data: ProductCreate, db: Session) -> ProductResponse:
         db.query(Product).options(joinedload(Product.category)).get(new_product.id)
     )
 
-    return ProductResponse.model_validate(product_with_category)
+    return ProductPublicResponse.model_validate(product_with_category)
 
 
 def update(
     product_id: int, product_data: ProductCreate, db: Session
-) -> ProductResponse:
+) -> ProductPublicResponse:
     product = _get_one_product(db, product_id)
 
     # Validar categoría
@@ -81,7 +93,7 @@ def update(
         db.query(Product).options(joinedload(Product.category)).get(product.id)
     )
 
-    return ProductResponse.model_validate(product_with_category)
+    return ProductPublicResponse.model_validate(product_with_category)
 
 
 def delete(product_id: int, db: Session) -> None:
@@ -91,17 +103,17 @@ def delete(product_id: int, db: Session) -> None:
     db.commit()
 
 
-def restore(product_id: int, db: Session) -> ProductResponse:
+def restore(product_id: int, db: Session) -> ProductPublicResponse:
     product = _get_one_product(db, product_id, include_inactives=True)
 
     product.is_active = True
     db.commit()
     db.refresh(product)
 
-    return ProductResponse.model_validate(product)
+    return ProductPublicResponse.model_validate(product)
 
 
-def update_stock(db: Session, product_id: int, new_stock: int) -> ProductResponse:
+def update_stock(db: Session, product_id: int, new_stock: int) -> ProductPublicResponse:
     if new_stock < 0:
         raise BadRequestException("Stock cannot be negative")
 
@@ -110,12 +122,16 @@ def update_stock(db: Session, product_id: int, new_stock: int) -> ProductRespons
     db.commit()
     db.refresh(product)
 
-    return ProductResponse.model_validate(product)
+    return ProductPublicResponse.model_validate(product)
 
 
-def adjust_stock(db: Session, product_id: int, quantity: int, reason: str = "Manual") -> ProductResponse:
+def adjust_stock(
+    db: Session, product_id: int, quantity: int, reason: str = "Manual"
+) -> ProductPublicResponse:
     if quantity == 0:
-        raise BadRequestException("Adjustment quantity cannot be zero. No change made to stock.")
+        raise BadRequestException(
+            "Adjustment quantity cannot be zero. No change made to stock."
+        )
 
     product = _get_one_product(db, product_id)
 
@@ -124,7 +140,7 @@ def adjust_stock(db: Session, product_id: int, quantity: int, reason: str = "Man
         raise BadRequestException("Not enough stock to complete this operation")
 
     product.stock = new_stock
-    
+
     history = StockHistory(
         product_id=product.id,
         quantity=quantity,
@@ -135,7 +151,7 @@ def adjust_stock(db: Session, product_id: int, quantity: int, reason: str = "Man
     db.commit()
     db.refresh(product)
 
-    return ProductResponse.model_validate(product)
+    return ProductPublicResponse.model_validate(product)
 
 
 def _get_category_or_400(db: Session, category_id: int) -> Category:

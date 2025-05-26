@@ -20,32 +20,44 @@ class ProductCreate(ProductBase):
     stock: int = 0
 
 
-class ProductResponse(ProductBase):
+class ProductImageResponse(BaseModel):
+    url: str
+    is_main: bool
+
+    model_config = {
+        "from_attributes": True,
+    }
+
+class ProductPublicResponse(ProductBase):
     id: int
     description: str | None
     stock: int
     category: CategoryResponse
+    images: List[ProductImageResponse] = []
     created_at: datetime
     updated_at: datetime
 
 
 class PaginatedProductResponse(BaseModel):
-    data: List[ProductResponse]
-    total: int
+    data: List[ProductPublicResponse]
+    page: int
+    total_pages: int
 
 
 class StockUpdate(BaseModel):
     stock: int
 
+
 class StockAdjustment(BaseModel):
     quantity: int
+
 
 class StockHistoryResponse(BaseModel):
     id: int
     quantity: int
     reason: str
     created_at: datetime
-    
+
     model_config = {
         "from_attributes": True,
         "extra": "ignore",

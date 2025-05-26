@@ -17,6 +17,9 @@ class Product(Base):
     category_id: Mapped[int] = mapped_column(
         ForeignKey("categories.id"), nullable=False
     )
+    images: Mapped[List["ProductImage"]] = relationship(
+        "ProductImage", back_populates="product", cascade="all, delete-orphan"
+    )
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.now)
     updated_at: Mapped[datetime] = mapped_column(
         DateTime,
@@ -25,8 +28,18 @@ class Product(Base):
     )
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
 
-    category: Mapped["Category"] = relationship("Category", back_populates="products") # type: ignore
+    category: Mapped["Category"] = relationship("Category", back_populates="products")  # type: ignore
     stock_history: Mapped[List["StockHistory"]] = relationship(
         back_populates="product", cascade="all, delete-orphan"
     )
 
+
+class ProductImage(Base):
+    __tablename__ = "product_images"
+
+    id: Mapped[int] = mapped_column(primary_key=True, index=True)
+    product_id: Mapped[int] = mapped_column(ForeignKey("products.id"), nullable=False)
+    image_url: Mapped[str] = mapped_column(String, nullable=False)
+    is_main: Mapped[bool] = mapped_column(Boolean, default=False)
+
+    product: Mapped[Product] = relationship("Product", back_populates="images")

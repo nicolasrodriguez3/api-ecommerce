@@ -1,22 +1,18 @@
-from typing import Annotated, List
+from typing import Annotated
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy.orm import Session
 from app.auth.dependencies import require_roles
 from app.core.database import get_db
-from app.core.exceptions import BadRequestException
 from app.products import service
 from app.products.schemas import (
-    ProductResponse,
+    ProductPublicResponse,
     PaginatedProductResponse,
     ProductCreate,
-    StockAdjustment,
-    StockHistoryResponse,
-    StockUpdate,
 )
 from app.users.models import User
 from app.users.roles import RoleEnum
 
-router = APIRouter(prefix="/products", tags=["products"])
+router = APIRouter(prefix="/products", tags=["Products"])
 
 
 @router.get("/", response_model=PaginatedProductResponse)
@@ -24,27 +20,36 @@ def get_products(
     skip: int = Query(0, ge=0),
     limit: int = Query(10, ge=1, le=100),
     search: str | None = Query(None, max_length=50),
+    min_price: float | None = Query(None, ge=0),
+    max_price: float | None = Query(None, ge=0),
     order_by: str = Query("id"),
     order_dir: str = Query("asc", pattern="^(asc|desc)$"),
     db: Session = Depends(get_db),
 ):
-    products, total = service.get_products(
+    products, page, total_pages = service.get_products(
         db,
         skip=skip,
         limit=limit,
         search=search,
+        min_price=min_price,
+        max_price=max_price,
         order_by=order_by,
         order_dir=order_dir,
     )
-    return {"data": products, "total": total}
+
+    return PaginatedProductResponse(
+        data=products,
+        page=page,
+        total_pages=total_pages,
+    )
 
 
-@router.get("/{product_id}", response_model=ProductResponse)
+@router.get("/{product_id}", response_model=ProductPublicResponse)
 def get_product(product_id: int, db: Session = Depends(get_db)):
     return service.get_by_id(db, product_id)
 
 
-@router.post("/", response_model=ProductResponse, status_code=201)
+@router.post("/", response_model=ProductPublicResponse, status_code=201)
 def create_product(
     current_user: Annotated[User, Depends(require_roles(RoleEnum.admin))],
     product: ProductCreate,
@@ -53,7 +58,7 @@ def create_product(
     return service.create(product, db)
 
 
-@router.put("/{product_id}", response_model=ProductResponse)
+@router.put("/{product_id}", response_model=ProductPublicResponse)
 def update_product(
     product_id: int, updated_data: ProductCreate, db: Session = Depends(get_db)
 ):

@@ -2,10 +2,10 @@ from sqlalchemy.orm import Session, joinedload
 from app.products.models import Product
 from app.core.exceptions import NotFoundException, BadRequestException
 from app.stock.models import StockHistory
-from app.products.schemas import ProductResponse
+from app.products.schemas import ProductPublicResponse
 
 
-def adjust_stock(db: Session, product_id: int, quantity: int, reason: str) -> ProductResponse:
+def adjust_stock(db: Session, product_id: int, quantity: int, reason: str) -> ProductPublicResponse:
     product = db.query(Product).filter_by(id=product_id).first()
     if not product:
         raise NotFoundException(f"Product with ID {product_id} not found")
@@ -23,4 +23,4 @@ def adjust_stock(db: Session, product_id: int, quantity: int, reason: str) -> Pr
     db.refresh(product)
 
     product = db.query(Product).options(joinedload(Product.category)).get(product_id)
-    return ProductResponse.model_validate(product)
+    return ProductPublicResponse.model_validate(product)
