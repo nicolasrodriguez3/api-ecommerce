@@ -35,8 +35,7 @@ def register_new_user(user: UserCreate, db: Session = Depends(get_db)):
     return service_create_user(db=db, user_data=user)
 
 
-# @router.get("/", response_model=List[UserResponse])
-@router.get("/")
+@router.get("/", response_model=List[UserResponse])
 def read_users_list(
     skip: int = 0,
     limit: int = 100,
@@ -119,7 +118,7 @@ def update_existing_user(
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
 
 
-@router.delete("/{user_id}", response_model=UserResponse)
+@router.delete("/{user_id}", response_model=None, status_code=204)
 def delete_existing_user(
     user_id: int,
     db: Session = Depends(get_db),
@@ -133,7 +132,6 @@ def delete_existing_user(
     if current_user.role_id != 1:  # Assuming role_id 1 is Admin
         raise ForbiddenException("Not authorized to delete users")
     try:
-        deleted_user = service_delete_user(db=db, user_id=user_id)
-        return deleted_user
+        return service_delete_user(db=db, user_id=user_id)
     except NotFoundException as e:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))

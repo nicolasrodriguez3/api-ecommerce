@@ -4,6 +4,7 @@ from pydantic import BaseModel
 from app.categories.schemas import CategoryResponse
 
 
+# Products
 class ProductBase(BaseModel):
     name: str
     price: float
@@ -21,12 +22,14 @@ class ProductCreate(ProductBase):
 
 
 class ProductImageResponse(BaseModel):
+    id: int
     url: str
-    is_main: bool
+    position: int
 
     model_config = {
         "from_attributes": True,
     }
+
 
 class ProductPublicResponse(ProductBase):
     id: int
@@ -44,6 +47,7 @@ class PaginatedProductResponse(BaseModel):
     total_pages: int
 
 
+# Stock
 class StockUpdate(BaseModel):
     stock: int
 

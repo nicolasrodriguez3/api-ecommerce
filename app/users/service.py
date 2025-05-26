@@ -16,13 +16,12 @@ from app.core.exceptions import (
 def create_user(db: Session, user_data: UserCreate) -> User:
     if (
         db.query(User)
-        .filter((User.username == user_data.username) | (User.email == user_data.email))
+        .filter(User.email == user_data.email)
         .first()
     ):
         raise BadRequestException("Username or email already registered")
 
     new_user = User(
-        username=user_data.username,
         email=user_data.email,
         hashed_password=get_password_hash(user_data.password),
         is_active=True,
@@ -42,7 +41,6 @@ def get_user(user_id: int, db: Session) -> UserResponse:
 
     return UserResponse(
             id=user.id,
-            username=user.username,
             email=user.email,
             is_active=user.is_active,
             created_at=user.created_at,
@@ -58,7 +56,6 @@ def get_users(db: Session, skip: int = 0, limit: int = 100) -> List[UserResponse
     return [
         UserResponse(
             id=user.id,
-            username=user.username,
             email=user.email,
             is_active=user.is_active,
             created_at=user.created_at,
@@ -75,17 +72,6 @@ def update_user(db: Session, user_id: int, user_update: UserUpdate) -> UserRespo
         raise NotFoundException(f"User with id {user_id} not found")
 
     update_data = user_update.model_dump(exclude_unset=True)
-
-    if "username" in update_data and update_data["username"] != db_user.username:
-        if (
-            db.query(User)
-            .filter(User.username == update_data["username"], User.id != user_id)
-            .first()
-        ):
-            raise BadRequestException(
-                f"Username '{update_data['username']}' is already taken."
-            )
-        db_user.username = update_data["username"]
 
     if "email" in update_data and update_data["email"] != db_user.email:
         if (
@@ -110,14 +96,11 @@ def update_user(db: Session, user_id: int, user_update: UserUpdate) -> UserRespo
     return UserResponse.model_validate(db_user)
 
 
-def delete_user(db: Session, user_id: int) -> UserResponse:
+def delete_user(db: Session, user_id: int) -> None:
     db_user = db.query(User).filter(User.id == user_id).first()
     if not db_user:
         raise NotFoundException(f"User with id {user_id} not found")
 
-    deleted_user_data = UserResponse.model_validate(
-        db_user
-    )  # Capture data before deleting
-    db.delete(db_user)
+    db_user.is_active = False
     db.commit()
-    return deleted_user_data
+    return None

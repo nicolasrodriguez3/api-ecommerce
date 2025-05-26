@@ -21,6 +21,5 @@ class UserResponse(UserBase):
 
 
 class UserUpdate(BaseModel):
-    username: str | None = None
     email: EmailStr | None = None
     is_active: bool | None = None
