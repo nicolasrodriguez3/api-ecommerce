@@ -11,6 +11,15 @@ class Settings(BaseSettings):
     jwt_secret: str
     jwt_algorithm: str = "HS256"
     access_token_expire_minutes: int = 30
+    
+    # Cloudinary settings
+    cloudinary_cloud_name: str
+    cloudinary_api_key: str
+    cloudinary_api_secret: str
+    
+    @property
+    def cloudinary_url(self) -> str:
+        return f"cloudinary://{self.cloudinary_api_key}:{self.cloudinary_api_secret}@{self.cloudinary_cloud_name}"
 
     class Config:
         env_file = ".env"
@@ -18,4 +27,4 @@ class Settings(BaseSettings):
 
 @lru_cache()
 def get_settings():
-    return Settings()
+    return Settings() # type: ignore

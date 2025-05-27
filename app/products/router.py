@@ -1,10 +1,11 @@
-from typing import Annotated
-from fastapi import APIRouter, Depends, Query
+from typing import Annotated, List
+from fastapi import APIRouter, Depends, File, Query, UploadFile
 from sqlalchemy.orm import Session
 from app.auth.dependencies import require_roles
 from app.core.database import get_db
 from app.products import service
 from app.products.schemas import (
+    ProductImageResponse,
     ProductPublicResponse,
     PaginatedProductResponse,
     ProductCreate,
@@ -45,7 +46,9 @@ def get_products(
 
 
 @router.get("/{product_id}")
-def get_product(product_id: int, db: Session = Depends(get_db)) -> ProductPublicResponse:
+def get_product(
+    product_id: int, db: Session = Depends(get_db)
+) -> ProductPublicResponse:
     return service.get_by_id(db, product_id)
 
 
@@ -81,3 +84,37 @@ def restore_product(
     db: Session = Depends(get_db),
 ) -> ProductPublicResponse:
     return service.restore(product_id, db)
+
+
+# Images
+@router.post("/{product_id}/images", status_code=201)
+def upload_image(
+    product_id: int,
+    file: UploadFile = File(...),
+    db: Session = Depends(get_db),
+) -> ProductImageResponse:
+    return service.upload_image(db, product_id, file)
+
+
+@router.get("/{product_id}/images")
+def get_images(
+    product_id: int,
+    db: Session = Depends(get_db),
+) -> List[ProductImageResponse]:
+    return service.get_product_images(db, product_id)
+
+
+@router.delete("/{product_id}/images/{image_id}", status_code=204)
+def delete_image(
+    product_id: int,
+    image_id: int,
+    db: Session = Depends(get_db),
+) -> None:
+    return service.delete_image(db, product_id, image_id)
+
+
+@router.patch("/images/{image_id}")
+def update_image_position(
+    image_id: int, new_position: int, db: Session = Depends(get_db)
+) -> ProductImageResponse:
+    return service.update_image_position(db, image_id, new_position)

@@ -1,11 +1,13 @@
 from typing import List
+from fastapi import File, UploadFile
 from sqlalchemy import asc, desc
 from sqlalchemy.orm import Session, joinedload
 
 from app.categories.models import Category
+from app.core.cloudinary import upload_image as upload_image_service
 from app.core.exceptions import BadRequestException, NotFoundException
-from app.products.models import Product, StockHistory
-from app.products.schemas import ProductCreate
+from app.products.models import Product, ProductImage, StockHistory
+from app.products.schemas import ProductCreate, ProductImageResponse
 from app.products.schemas import ProductPublicResponse
 
 
@@ -48,7 +50,6 @@ def get_products(
     total: int = query.count()
     total_pages: int = total // limit + (1 if total % limit > 0 else 0)
     page: int = skip // limit + 1
-    
 
     result = [ProductPublicResponse.model_validate(p) for p in products]
     return result, page, total_pages
@@ -154,6 +155,79 @@ def adjust_stock(
     return ProductPublicResponse.model_validate(product)
 
 
+def upload_image(
+    db: Session,
+    product_id: int,
+    file: UploadFile = File(...),
+) -> ProductImageResponse:
+
+    url: str = upload_image_service(file, folder="products")
+    image = ProductImage(product_id=product_id, url=url)
+
+    product = _get_one_product(db, product_id)
+    image_position: int = len(product.images) + 1
+    image.position = image_position
+
+    db.add(image)
+    db.commit()
+    db.refresh(image)
+
+    return ProductImageResponse.model_validate(image)
+
+
+def get_product_images(db: Session, product_id: int) -> List[ProductImageResponse]:
+    product = _get_one_product(db, product_id)
+    images: List[ProductImage] = product.images
+
+    if not images:
+        raise NotFoundException(f"No images found for product with ID {product_id}")
+
+    return [ProductImageResponse.model_validate(image) for image in images]
+
+
+def delete_image(
+    db: Session, product_id: int, image_id: int
+) -> None:
+    product = _get_one_product(db, product_id)
+    image = db.query(ProductImage).filter_by(id=image_id, product_id=product.id).first()
+
+    if not image:
+        raise NotFoundException(f"Image with ID {image_id} not found for product {product_id}")
+
+    db.delete(image)
+    db.commit()
+
+def update_image_position(
+    db: Session, image_id: int, new_position: int
+) -> ProductImageResponse:
+    image = db.query(ProductImage).filter_by(id=image_id).first()
+
+    if not image:
+        raise NotFoundException(f"Image with ID {image_id} not found")
+    
+    if image.position == new_position:
+        raise BadRequestException("Image is already in the requested position")
+
+    if new_position < 1:
+        raise BadRequestException("Position must be greater than 0")
+
+    # Check if the new position is already occupied
+    existing_image = (
+        db.query(ProductImage)
+        .filter_by(product_id=image.product_id, position=new_position)
+        .first()
+    )
+
+    if existing_image:
+        existing_image.position = image.position  # Move existing image to old position
+
+    image.position = new_position
+    db.commit()
+    db.refresh(image)
+
+    return ProductImageResponse.model_validate(image)
+    
+    
 def _get_category_or_400(db: Session, category_id: int) -> Category:
     category = db.query(Category).filter_by(id=category_id).first()
     if not category:
