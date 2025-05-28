@@ -88,12 +88,12 @@ def restore_product(
 
 # Images
 @router.post("/{product_id}/images", status_code=201)
-def upload_image(
+async def upload_image(
     product_id: int,
     file: UploadFile = File(...),
     db: Session = Depends(get_db),
 ) -> ProductImageResponse:
-    return service.upload_image(db, product_id, file)
+    return await service.upload_image(db, product_id, file)
 
 
 @router.get("/{product_id}/images")

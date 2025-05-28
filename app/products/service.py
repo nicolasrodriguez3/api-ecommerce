@@ -1,4 +1,8 @@
+import os
+import shutil
+import tempfile
 from typing import List
+import uuid
 from fastapi import File, UploadFile
 from sqlalchemy import asc, desc
 from sqlalchemy.orm import Session, joinedload
@@ -155,24 +159,74 @@ def adjust_stock(
     return ProductPublicResponse.model_validate(product)
 
 
-def upload_image(
+async def upload_image(
     db: Session,
     product_id: int,
     file: UploadFile = File(...),
 ) -> ProductImageResponse:
+    # Validaciones previas
+    MAX_SIZE_MB = 5
+    ALLOWED_EXTENSIONS = {"jpg", "jpeg", "png", "gif"}
+    ALLOWED_MIME_TYPES = {"image/jpeg", "image/png", "image/gif"}
 
-    url: str = upload_image_service(file, folder="products")
-    image = ProductImage(product_id=product_id, url=url)
+    # Validar nombre de archivo
+    if not file.filename:
+        raise BadRequestException("El archivo no tiene nombre.")
 
+    # Validar extensión
+    ext = file.filename.rsplit(".", 1)[-1].lower()
+    if ext not in ALLOWED_EXTENSIONS:
+        raise BadRequestException(
+            "Tipo de archivo no permitido. Solo imágenes jpg, jpeg, png, gif."
+        )
+
+    # Validar tipo MIME
+    if file.content_type not in ALLOWED_MIME_TYPES:
+        raise BadRequestException("El archivo no es una imagen válida.")
+
+    # Validar tamaño (lee el archivo en memoria para comprobar el tamaño)
+    contents = await file.read()
+    size_mb = len(contents) / (1024 * 1024)
+    if size_mb > MAX_SIZE_MB:
+        raise BadRequestException(
+            f"El archivo supera el tamaño máximo permitido de {MAX_SIZE_MB} MB."
+        )
+    # Regresa el puntero al inicio para poder guardar el archivo después
+    file.file.seek(0)
+
+    # Guardar temporalmente
+    temp_dir = tempfile.gettempdir()
+    file_name = os.path.join(temp_dir, f"{uuid.uuid4().hex}_{file.filename}")
+    with open(file_name, "wb") as buffer:
+        shutil.copyfileobj(file.file, buffer)
+
+    # Validar producto
     product = _get_one_product(db, product_id)
-    image_position: int = len(product.images) + 1
-    image.position = image_position
+    if not product:
+        raise NotFoundException(f"Product with ID {product_id} not found")
 
-    db.add(image)
-    db.commit()
-    db.refresh(image)
+    # Cargar a Cloudinary
+    try:
+        url: str = upload_image_service(file, folder="products")
+        image = ProductImage(product_id=product_id, url=url)
 
-    return ProductImageResponse.model_validate(image)
+        product = _get_one_product(db, product_id)
+        image_position: int = len(product.images) + 1
+        image.position = image_position
+
+        db.add(image)
+        db.commit()
+        db.refresh(image)
+
+        return ProductImageResponse.model_validate(image)
+    except Exception as e:
+        raise BadRequestException(f"Error uploading image: {str(e)}")
+    finally:
+        # Elimina el archivo temporal
+        try:
+            os.remove(file_name)
+        except Exception:
+            pass
 
 
 def get_product_images(db: Session, product_id: int) -> List[ProductImageResponse]:
@@ -185,17 +239,18 @@ def get_product_images(db: Session, product_id: int) -> List[ProductImageRespons
     return [ProductImageResponse.model_validate(image) for image in images]
 
 
-def delete_image(
-    db: Session, product_id: int, image_id: int
-) -> None:
+def delete_image(db: Session, product_id: int, image_id: int) -> None:
     product = _get_one_product(db, product_id)
     image = db.query(ProductImage).filter_by(id=image_id, product_id=product.id).first()
 
     if not image:
-        raise NotFoundException(f"Image with ID {image_id} not found for product {product_id}")
+        raise NotFoundException(
+            f"Image with ID {image_id} not found for product {product_id}"
+        )
 
     db.delete(image)
     db.commit()
+
 
 def update_image_position(
     db: Session, image_id: int, new_position: int
@@ -204,7 +259,7 @@ def update_image_position(
 
     if not image:
         raise NotFoundException(f"Image with ID {image_id} not found")
-    
+
     if image.position == new_position:
         raise BadRequestException("Image is already in the requested position")
 
@@ -226,8 +281,8 @@ def update_image_position(
     db.refresh(image)
 
     return ProductImageResponse.model_validate(image)
-    
-    
+
+
 def _get_category_or_400(db: Session, category_id: int) -> Category:
     category = db.query(Category).filter_by(id=category_id).first()
     if not category:
