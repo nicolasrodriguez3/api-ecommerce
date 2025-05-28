@@ -16,7 +16,11 @@ SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
 
 class Base(DeclarativeBase):
-    pass
+    def to_dict(self) -> dict:
+        return {
+            column.name: getattr(self, column.name)
+            for column in self.__class__.__table__.columns
+        }
 
 
 def get_db():

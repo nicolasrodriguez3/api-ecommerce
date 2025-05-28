@@ -32,11 +32,15 @@ def upload_image(file, folder="products") -> str:
     return result["secure_url"]
 
 
-def delete_image_from_url(url: str):
+def delete_image_from_url(url: str) -> dict:
     parsed = urlparse(url)
     public_id = parsed.path.split("/")[-1].split(".")[
         0
     ]  # asume que termina en /filename.jpg
-    folder = "/".join(parsed.path.strip("/").split("/")[:-1])
+    folder = "/".join(parsed.path.strip("/").split("/")[4:-1])
     full_id = f"{folder}/{public_id}"
-    cloudinary.uploader.destroy(full_id)
+    return cloudinary.uploader.destroy(
+        full_id,
+        resource_type="image",
+        invalidate=True,
+    )

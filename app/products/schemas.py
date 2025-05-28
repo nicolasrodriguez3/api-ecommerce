@@ -18,7 +18,15 @@ class ProductBase(BaseModel):
 class ProductCreate(ProductBase):
     description: str | None = None
     category_id: int
-    stock: int = 0
+
+
+class ProductUpdate(BaseModel):
+    name: str | None = None
+    description: str | None = None
+    category_id: int | None = None
+    stock: int | None = None
+    price: float | None = None
+
 
 
 class ProductImageResponse(BaseModel):
@@ -39,6 +47,11 @@ class ProductPublicResponse(ProductBase):
     images: List[ProductImageResponse] = []
     created_at: datetime
     updated_at: datetime
+    
+    model_config = {
+        "from_attributes": True,
+        "extra": "ignore",
+    }
 
 
 class PaginatedProductResponse(BaseModel):

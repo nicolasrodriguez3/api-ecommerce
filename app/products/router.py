@@ -9,6 +9,7 @@ from app.products.schemas import (
     ProductPublicResponse,
     PaginatedProductResponse,
     ProductCreate,
+    ProductUpdate,
 )
 from app.users.models import User
 from app.users.roles import RoleEnum
@@ -63,8 +64,8 @@ def create_product(
 
 @router.put("/{product_id}")
 def update_product(
-    product_id: int, updated_data: ProductCreate, db: Session = Depends(get_db)
-) -> ProductPublicResponse:
+    product_id: int, updated_data: ProductUpdate, db: Session = Depends(get_db)
+) :
     return service.update(product_id, updated_data, db)
 
 
