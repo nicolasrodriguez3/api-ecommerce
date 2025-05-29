@@ -40,6 +40,7 @@ class ProductImage(Base):
     id: Mapped[int] = mapped_column(primary_key=True, index=True)
     product_id: Mapped[int] = mapped_column(ForeignKey("products.id"), nullable=False)
     url: Mapped[str] = mapped_column(String, nullable=False)
+    public_id: Mapped[str] = mapped_column(String, nullable=False)
     position: Mapped[int] = mapped_column(default=0)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.now)
 

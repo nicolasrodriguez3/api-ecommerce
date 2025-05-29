@@ -122,7 +122,9 @@ def update(
     if product_data.category_id is not None:
         _get_category_or_400(db, product_data.category_id)
 
-    print(f"Updating product {product_id} with data: {product_data.model_dump(exclude_none=True)}")
+    print(
+        f"Updating product {product_id} with data: {product_data.model_dump(exclude_none=True)}"
+    )
     # Actualizar los campos del producto
     for key, value in product_data.model_dump(exclude_none=True).items():
         setattr(product, key, value)
@@ -135,7 +137,7 @@ def update(
         raise BadRequestException(f"Error updating product: {str(e)}")
 
     db.refresh(product)
-    
+
     product_with_category = _get_one_product(db, product_id)
     print(f"Product with category: {product_with_category.to_dict()}")
     if not product_with_category:
@@ -296,8 +298,6 @@ async def upload_image(
         raise BadRequestException(
             f"El archivo supera el tamaño máximo permitido de {MAX_SIZE_MB} MB."
         )
-    # Regresa el puntero al inicio para poder guardar el archivo después
-    file.file.seek(0)
 
     # Guardar temporalmente
     temp_dir = tempfile.gettempdir()
@@ -305,11 +305,13 @@ async def upload_image(
     with open(file_name, "wb") as buffer:
         shutil.copyfileobj(file.file, buffer)
 
+    # Regresa el puntero al inicio para poder guardar el archivo
+    file.file.seek(0)
+
     # Cargar a Cloudinary
     try:
-        print(f"Uploading image for product {product_id} from file: {file_name}")
-        url: str = upload_image_service(file, folder="products")
-        image = ProductImage(product_id=product_id, url=url)
+        response: dict = upload_image_service(file, folder="products")
+        image = ProductImage(product_id=product_id, **response)
         image_position: int = len(product.images) + 1
         image.position = image_position
 

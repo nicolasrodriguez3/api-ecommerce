@@ -13,23 +13,26 @@ cloudinary.config(
 )
 
 
-def upload_image(file, folder="products") -> str:
+def upload_image(file, folder="products") -> dict:
     """
     Uploads an image to Cloudinary and returns the secure URL.
     :param file: FastAPI UploadFile object
     :param folder: Optional folder name in Cloudinary
     :return: Secure URL of the uploaded image
     """
-
+    # print(file)
+    
     filename = str(uuid4())
+    print(f"Uploading {file.filename} to Cloudinary with public_id {filename} in folder {folder}")
     result = cloudinary.uploader.upload(
-        file.file,  # FastAPI UploadFile
+        file.file,
         public_id=filename,
         folder=folder,
         resource_type="image",
         overwrite=True,
     )
-    return result["secure_url"]
+    print(f"Upload result: {result}")
+    return {"url": result["secure_url"], "public_id": result["public_id"]}
 
 
 def delete_image_from_url(url: str) -> dict:
