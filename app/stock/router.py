@@ -5,7 +5,11 @@ from sqlalchemy.orm import Session
 from app.auth.dependencies import require_roles
 from app.core.database import get_db
 from app.stock.schemas import StockMovementCreate
-from app.products.schemas import ProductPublicResponse, StockHistoryResponse, StockUpdate
+from app.products.schemas import (
+    ProductPublicResponse,
+    StockHistoryResponse,
+    StockUpdate,
+)
 from app.stock.service import adjust_stock
 from app.products import service as product_service
 from app.users.models import User
@@ -23,11 +27,14 @@ def move_stock(
     return adjust_stock(db, product_id, movement.quantity, movement.reason)
 
 
-@router.patch("/{product_id}/stock", response_model=ProductPublicResponse)
+@router.patch(
+    "/{product_id}/stock",
+    response_model=ProductPublicResponse,
+    dependencies=[Depends(require_roles(RoleEnum.ADMIN))],
+)
 def update_stock(
     product_id: int,
     stock_data: StockUpdate,
-    current_user: Annotated[User, Depends(require_roles(RoleEnum.admin))],
     db: Session = Depends(get_db),
 ):
     return product_service.update_stock(db, product_id, stock_data.stock)

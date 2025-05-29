@@ -53,9 +53,10 @@ def get_product(
     return service.get_by_id(db, product_id)
 
 
-@router.post("/", status_code=201)
+@router.post(
+    "/", status_code=201, dependencies=[Depends(require_roles(RoleEnum.ADMIN))]
+)
 def create_product(
-    current_user: Annotated[User, Depends(require_roles(RoleEnum.admin))],
     product: ProductCreate,
     db: Session = Depends(get_db),
 ) -> ProductPublicResponse:
@@ -65,23 +66,29 @@ def create_product(
 @router.put("/{product_id}")
 def update_product(
     product_id: int, updated_data: ProductUpdate, db: Session = Depends(get_db)
-) :
+):
     return service.update(product_id, updated_data, db)
 
 
-@router.delete("/{product_id}", status_code=204)
+@router.delete(
+    "/{product_id}",
+    status_code=204,
+    dependencies=[Depends(require_roles(RoleEnum.ADMIN))],
+)
 def delete_product(
     product_id: int,
-    current_user: Annotated[User, Depends(require_roles(RoleEnum.admin))],
     db: Session = Depends(get_db),
 ):
     return service.delete(product_id, db)
 
 
-@router.patch("/{product_id}/restore", status_code=200)
+@router.patch(
+    "/{product_id}/restore",
+    status_code=200,
+    dependencies=[Depends(require_roles(RoleEnum.ADMIN))],
+)
 def restore_product(
     product_id: int,
-    current_user: Annotated[User, Depends(require_roles(RoleEnum.admin))],
     db: Session = Depends(get_db),
 ) -> ProductPublicResponse:
     return service.restore(product_id, db)

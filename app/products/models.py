@@ -3,6 +3,7 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sqlalchemy import String, DateTime, Float, ForeignKey, Boolean
 from datetime import datetime
 from app.core.database import Base
+from app.orders.models import OrderItem
 from app.stock.models import StockHistory
 
 
@@ -31,6 +32,9 @@ class Product(Base):
     category: Mapped["Category"] = relationship("Category", back_populates="products")  # type: ignore
     stock_history: Mapped[List["StockHistory"]] = relationship(
         back_populates="product", cascade="all, delete-orphan"
+    )
+    order_items: Mapped[list["OrderItem"]] = relationship(
+        "OrderItem", back_populates="product"
     )
 
 

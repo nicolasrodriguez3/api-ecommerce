@@ -5,3 +5,4 @@ from app.users.models import User
 from app.roles.models import Role
 from app.auth.models import RefreshToken
 from app.customers.models import Customer
+from app.orders.models import Order, OrderItem

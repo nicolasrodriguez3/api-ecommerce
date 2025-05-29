@@ -5,6 +5,7 @@ from datetime import datetime
 from app.auth.models import RefreshToken
 from app.core.database import Base
 from app.customers.models import Customer
+from app.orders.models import Order
 
 
 class User(Base):
@@ -27,3 +28,5 @@ class User(Base):
     refresh_tokens: Mapped[List[RefreshToken]] = relationship(
         "RefreshToken", back_populates="user", cascade="all, delete-orphan"
     )
+
+    orders: Mapped[list["Order"]] = relationship("Order", back_populates="user")
