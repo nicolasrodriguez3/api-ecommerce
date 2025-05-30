@@ -1,9 +1,11 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, status
 from sqlalchemy.orm import Session
 from app.core.database import get_db
+from app.core.exceptions import NotFoundException, UnauthorizedException
+from app.integrations.cianbox.schemas import SyncStatusResponse
 from app.orders.models import Order
 from app.orders.schemas import OrderCreate, OrderResponse
-from app.orders.service import create_order
+from app.orders import service
 from app.auth.dependencies import get_current_user
 from app.users.models import User
 from app.users.roles import RoleEnum
@@ -19,9 +21,9 @@ def create_order_endpoint(
     current_user: User = Depends(get_current_user),
 ):
     try:
-        return create_order(db, order_data, current_user.id)
+        return service.create_order(db, order_data, current_user.id)
     except ValueError as e:
-        raise HTTPException(status_code=404, detail=str(e))
+        raise NotFoundException(str(e))
 
 
 @router.get(
@@ -30,14 +32,14 @@ def create_order_endpoint(
     dependencies=[Depends(require_roles(RoleEnum.ADMIN))],
 )
 def get_all_orders(db: Session = Depends(get_db)):
-    return db.query(Order).all()
+    return service.get_all_orders(db)
 
 
 @router.get("/me", response_model=list[OrderResponse])
 def get_my_orders(
     db: Session = Depends(get_db), current_user: User = Depends(get_current_user)
 ):
-    return db.query(Order).filter(Order.user_id == current_user.id).all()
+    return service.get_order_by_user_id(db, current_user.id)
 
 
 @router.get("/{order_id}", response_model=OrderResponse)
@@ -46,15 +48,9 @@ def get_order_by_id(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    order = db.query(Order).filter(Order.id == order_id).first()
-    if not order:
-        raise HTTPException(status_code=404, detail="Order not found")
+    return service.get_order(db, order_id, current_user)
 
-    # Solo admins o el mismo usuario pueden ver
-    if order.user_id != current_user.id and current_user.role.name not in [
-        "admin",
-        "owner",
-    ]:
-        raise HTTPException(status_code=403, detail="Not authorized")
 
-    return order
+@router.post("/orders/{order_id}/sync/cianbox", response_model=SyncStatusResponse)
+def sync_order_cianbox(order_id: int, db: Session = Depends(get_db), current_user: User = Depends(dependency=get_current_user)):
+    return service.sync_order_with_cianbox(db, order_id)

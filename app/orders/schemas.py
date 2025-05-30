@@ -17,6 +17,7 @@ class OrderItemCreate(BaseModel):
 
 class OrderCreate(BaseModel):
     items: List[OrderItemCreate]
+    observations: str | None = None
 
 
 class OrderItemResponse(BaseModel):
@@ -31,8 +32,8 @@ class OrderItemResponse(BaseModel):
 
 class OrderResponse(BaseModel):
     id: int
+    user_id: int
     total_amount: float
-    synced_with_cianbox: bool
     created_at: datetime
     updated_at: datetime
     items: List[OrderItemResponse]
