@@ -8,7 +8,6 @@ from app.core.exceptions import (
     NotFoundException,
 )
 from app.core.database import Base, engine, get_db
-from app.roles.init import init_roles
 from app.products.router import router as products_router
 from app.categories.router import router as categories_router
 from app.stock.router import router as stock_router
@@ -25,7 +24,6 @@ Base.metadata.create_all(bind=engine)
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     db = next(get_db())
-    init_roles(db)
     yield
 
 

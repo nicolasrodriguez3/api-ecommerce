@@ -11,27 +11,28 @@ from app.core.exceptions import (
     UnauthorizedException,
     NotFoundException,
 )
+from .roles import RoleEnum
 
 
 def create_user(db: Session, user_data: UserCreate) -> User:
-    if (
-        db.query(User)
-        .filter(User.email == user_data.email)
-        .first()
-    ):
-        raise BadRequestException("Username or email already registered")
+    if db.query(User).filter(User.email == user_data.email).first():
+        raise BadRequestException("Email already registered")
 
-    new_user = User(
-        email=user_data.email,
-        hashed_password=get_password_hash(user_data.password),
-        is_active=True,
-        role_id=1,
-    )
-
-    db.add(new_user)
-    db.commit()
-    db.refresh(new_user)
-    return new_user
+    try:
+        new_user = User(
+            email=user_data.email,
+            hashed_password=get_password_hash(user_data.password),
+            is_active=True,
+            role=RoleEnum.CUSTOMER,  # Default role is USER
+        )
+        
+        db.add(new_user)
+        db.commit()
+        db.refresh(new_user)
+        return new_user
+    except Exception as e:
+        db.rollback()
+        raise BadRequestException(f"Failed to create user: {str(e)}")
 
 
 def get_user(user_id: int, db: Session) -> UserResponse:
@@ -40,13 +41,13 @@ def get_user(user_id: int, db: Session) -> UserResponse:
         raise NotFoundException(f"User with id {user_id} not found")
 
     return UserResponse(
-            id=user.id,
-            email=user.email,
-            is_active=user.is_active,
-            created_at=user.created_at,
-            updated_at=user.updated_at,
-            role=user.role.name,
-        )
+        id=user.id,
+        email=user.email,
+        is_active=user.is_active,
+        created_at=user.created_at,
+        updated_at=user.updated_at,
+        role=user.role,
+    )
 
 
 def get_users(db: Session, skip: int = 0, limit: int = 100) -> List[UserResponse]:
@@ -60,7 +61,7 @@ def get_users(db: Session, skip: int = 0, limit: int = 100) -> List[UserResponse
             is_active=user.is_active,
             created_at=user.created_at,
             updated_at=user.updated_at,
-            role=user.role.name,
+            role=user.role,
         )
         for user in users
     ]

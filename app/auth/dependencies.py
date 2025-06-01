@@ -10,7 +10,7 @@ def require_roles(*roles: RoleEnum):
     def role_checker(
         current_user: Annotated[User, Depends(get_current_user)],
     ):
-        if current_user.role.name not in roles:
+        if current_user.role not in roles:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="You do not have permission to perform this action",
@@ -29,7 +29,7 @@ def require_self_or_roles(*roles: RoleEnum, user_id_path_param: str = "user_id")
 
         # If not self, check if user has one of the specified roles
         # This assumes User model has 'role' attribute which has a 'name' attribute (e.g. RoleEnum.admin.name)
-        if hasattr(current_user, 'role') and current_user.role and current_user.role.name in roles:
+        if hasattr(current_user, 'role') and current_user.role and current_user.role in roles:
             return current_user # User has a permitted role
 
         raise HTTPException(

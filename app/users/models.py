@@ -6,6 +6,7 @@ from app.auth.models import RefreshToken
 from app.core.database import Base
 from app.customers.models import Customer
 from app.orders.models import Order
+from app.users.roles import RoleEnum
 
 
 class User(Base):
@@ -15,7 +16,9 @@ class User(Base):
     email: Mapped[str] = mapped_column(String(100), unique=True, nullable=False)
     hashed_password: Mapped[str] = mapped_column(String(255), nullable=False)
     is_active: Mapped[bool] = mapped_column(default=True)
-    role_id: Mapped[int] = mapped_column(ForeignKey("roles.id"))
+    role: Mapped[str] = mapped_column(
+        String(50), nullable=False, default=RoleEnum.CUSTOMER.value
+    )
 
     created_at: Mapped[datetime] = mapped_column(default=datetime.now)
     updated_at: Mapped[datetime] = mapped_column(
@@ -23,7 +26,6 @@ class User(Base):
     )
 
     customer: Mapped[Customer] = relationship("Customer", uselist=False, back_populates="user")
-    role: Mapped["Role"] = relationship("Role", back_populates="users")
 
     refresh_tokens: Mapped[List[RefreshToken]] = relationship(
         "RefreshToken", back_populates="user", cascade="all, delete-orphan"

@@ -4,6 +4,7 @@ from sqlalchemy.orm import Session
 
 from app.core.database import get_db
 from app.auth.dependencies import get_current_user
+from app.users.roles import RoleEnum
 from app.users.schemas import UserCreate, UserResponse, UserUpdate
 from app.users.service import (
     create_user as service_create_user,
@@ -18,6 +19,7 @@ from app.users.models import User
 router = APIRouter(prefix="/users", tags=["Users"])
 
 
+@router.get("/me", response_model=UserResponse)
 def get_me(current_user: User = Depends(get_current_user)):
     """
     Get the details of the currently authenticated user.
@@ -48,7 +50,7 @@ def read_users_list(
     - Accessible only by admin users (role_id = 1).
     - Supports pagination using `skip` and `limit` query parameters.
     """
-    if current_user.role_id != 1:  # Assuming role_id 1 is Admin
+    if current_user.role != RoleEnum.ADMIN.value:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Not authorized to access this resource",
@@ -71,8 +73,8 @@ def read_user_by_id(
     """
     # Allow user to get their own data or admin to get any user's data
     if (
-        current_user.id != user_id and current_user.role_id != 1
-    ):  # Assuming role_id 1 is Admin
+        current_user.id != user_id and current_user.role != RoleEnum.ADMIN.value
+    ):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Not authorized to access this user's data",
@@ -100,8 +102,8 @@ def update_existing_user(
     """
     # Allow user to update their own data or admin to update any user's data
     if (
-        current_user.id != user_id and current_user.role_id != 1
-    ):  # Assuming role_id 1 is Admin
+        current_user.id != user_id and current_user.role != RoleEnum.ADMIN.value
+    ):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Not authorized to update this user",
@@ -129,7 +131,7 @@ def delete_existing_user(
 
     - Accessible only by admin users (role_id = 1).
     """
-    if current_user.role_id != 1:  # Assuming role_id 1 is Admin
+    if current_user.role != RoleEnum.ADMIN.value:
         raise ForbiddenException("Not authorized to delete users")
     try:
         return service_delete_user(db=db, user_id=user_id)
