@@ -3,9 +3,11 @@ from app.products.models import Product
 from app.core.exceptions import NotFoundException, BadRequestException
 from app.stock.models import StockHistory
 from app.products.schemas import ProductPublicResponse
+from app.core import db_connection
 
+db: Session = db_connection.session
 
-def adjust_stock(db: Session, product_id: int, quantity: int, reason: str) -> ProductPublicResponse:
+def adjust_stock(product_id: int, quantity: int, reason: str) -> ProductPublicResponse:
     product = db.query(Product).filter_by(id=product_id).first()
     if not product:
         raise NotFoundException(f"Product with ID {product_id} not found")

@@ -5,7 +5,7 @@ from jose import ExpiredSignatureError, JWTError, jwt
 from passlib.context import CryptContext
 from app.auth.schemas import Token
 from app.core.config import get_settings
-from app.core.database import get_db
+from app.core import db_connection
 from app.core.exceptions import UnauthorizedException
 from app.users.models import User
 from sqlalchemy.orm import Session
@@ -18,6 +18,8 @@ SECRET_KEY = settings.jwt_secret
 ALGORITHM = settings.jwt_algorithm
 ACCESS_TOKEN_EXPIRE_MINUTES = settings.access_token_expire_minutes
 
+
+db: Session = db_connection.session
 
 def create_access_token(data: dict, expires_delta: timedelta | None = None):
     to_encode = data.copy()
@@ -69,7 +71,7 @@ def decode_token(token: str) -> dict:
 
 
 def get_current_user(
-    token: str = Depends(oauth2_scheme), db: Session = Depends(get_db)
+    token: str = Depends(oauth2_scheme)
 ) -> User:
     credentials_exception = UnauthorizedException("Could not validate credentials")
 

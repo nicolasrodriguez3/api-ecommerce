@@ -3,7 +3,6 @@ from fastapi import APIRouter, Body, Depends, Path
 from sqlalchemy.orm import Session
 
 from app.auth.dependencies import require_roles
-from app.core.database import get_db
 from app.stock.schemas import StockMovementCreate
 from app.products.schemas import (
     ProductPublicResponse,
@@ -22,9 +21,8 @@ router = APIRouter(prefix="/stock", tags=["Stock"])
 def move_stock(
     product_id: int = Path(..., gt=0),
     movement: StockMovementCreate = Body(...),
-    db: Session = Depends(get_db),
 ):
-    return adjust_stock(db, product_id, movement.quantity, movement.reason)
+    return adjust_stock(product_id, movement.quantity, movement.reason)
 
 
 @router.patch(
@@ -35,12 +33,11 @@ def move_stock(
 def update_stock(
     product_id: int,
     stock_data: StockUpdate,
-    db: Session = Depends(get_db),
 ):
-    return product_service.update_stock(db, product_id, stock_data.stock)
+    return product_service.update_stock(product_id, stock_data.stock)
 
 
 @router.get("/{product_id}/stock-history", response_model=List[StockHistoryResponse])
-def get_stock_history(product_id: int, db: Session = Depends(get_db)):
-    product = product_service._get_one_product(db, product_id)
+def get_stock_history(product_id: int):
+    product = product_service._get_one_product(product_id)
     return product.stock_history

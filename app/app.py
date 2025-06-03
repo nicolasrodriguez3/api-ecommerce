@@ -7,7 +7,8 @@ from app.core.exceptions import (
     ConflictException,
     NotFoundException,
 )
-from app.core.database import Base, engine, get_db
+from app.core.database import Base
+from app.core import db_connection
 from app.products.router import router as products_router
 from app.categories.router import router as categories_router
 from app.stock.router import router as stock_router
@@ -18,13 +19,14 @@ from app.orders.router import router as orders_router
 
 
 # Crear tablas
-Base.metadata.create_all(bind=engine)
+# Base.metadata.create_all(bind=engine)
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    db = next(get_db())
+    db_connection.connect()
     yield
+    db_connection.disconnect()
 
 
 app = FastAPI(title="Ecommerce API", lifespan=lifespan)

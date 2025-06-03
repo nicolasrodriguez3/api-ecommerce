@@ -15,6 +15,7 @@ from app.core.cloudinary import (
 )
 from app.core.exceptions import BadRequestException, NotFoundException
 from app.core.logger import setup_logger
+from app.core import db_connection
 from app.products.models import Product, ProductImage, StockHistory
 from app.products.schemas import ProductCreate, ProductImageResponse, ProductUpdate
 from app.products.schemas import ProductPublicResponse
@@ -22,8 +23,10 @@ from app.products.schemas import ProductPublicResponse
 logger: Logger = setup_logger(__name__)
 
 
+db: Session = db_connection.session
+
+
 def get_products(
-    db: Session,
     skip: int = 0,
     limit: int = 10,
     search: str | None = None,
@@ -82,20 +85,20 @@ def get_products(
     return result, page, total_pages
 
 
-def get_by_id(db: Session, product_id: int) -> ProductPublicResponse:
+def get_by_id(product_id: int) -> ProductPublicResponse:
     """
     Get a product by its ID.
     :param db: Database session
     :param product_id: ID of the product to retrieve
     :return: ProductPublicResponse containing product details
     """
-    product = _get_one_product(db, product_id)
+    product = _get_one_product(product_id)
 
     return ProductPublicResponse.model_validate(product)
 
 
-def create(product_data: ProductCreate, db: Session) -> ProductPublicResponse:
-    _get_category_or_400(db, product_data.category_id)
+def create(product_data: ProductCreate) -> ProductPublicResponse:
+    _get_category_or_400(product_data.category_id)
 
     new_product = Product(**product_data.model_dump())
     db.add(new_product)
@@ -111,16 +114,16 @@ def create(product_data: ProductCreate, db: Session) -> ProductPublicResponse:
 
 
 def update(
-    product_id: int, product_data: ProductUpdate, db: Session
+    product_id: int, product_data: ProductUpdate
 ) -> ProductPublicResponse:
     # Validar que el producto existe
-    product = _get_one_product(db, product_id)
+    product = _get_one_product(product_id)
     # Guarda el estado original antes de modificar
     original_data = product.to_dict().copy()
 
     # Validar categoría
     if product_data.category_id is not None:
-        _get_category_or_400(db, product_data.category_id)
+        _get_category_or_400(product_data.category_id)
 
     print(
         f"Updating product {product_id} with data: {product_data.model_dump(exclude_none=True)}"
@@ -138,7 +141,7 @@ def update(
 
     db.refresh(product)
 
-    product_with_category = _get_one_product(db, product_id)
+    product_with_category = _get_one_product(product_id)
     print(f"Product with category: {product_with_category.to_dict()}")
     if not product_with_category:
         logger.error(f"Product with ID {product_id} not found after update")
@@ -150,7 +153,7 @@ def update(
     return ProductPublicResponse.model_validate(product_with_category)
 
 
-def delete(product_id: int, db: Session) -> None:
+def delete(product_id: int) -> None:
     """
     Delete a product by its ID.
     :param product_id: ID of the product to delete
@@ -158,7 +161,7 @@ def delete(product_id: int, db: Session) -> None:
     :return: None
     """
 
-    product = _get_one_product(db, product_id)
+    product = _get_one_product(product_id)
 
     product.is_active = False
     db.commit()
@@ -166,14 +169,14 @@ def delete(product_id: int, db: Session) -> None:
     return None
 
 
-def restore(product_id: int, db: Session) -> ProductPublicResponse:
+def restore(product_id: int) -> ProductPublicResponse:
     """
     Restore a previously deleted product by its ID.
     :param product_id: ID of the product to restore
     :param db: Database session
     :return: ProductPublicResponse containing restored product details
     """
-    product = _get_one_product(db, product_id, include_inactives=True)
+    product = _get_one_product(product_id, include_inactives=True)
 
     product.is_active = True
     db.commit()
@@ -183,7 +186,7 @@ def restore(product_id: int, db: Session) -> ProductPublicResponse:
     return ProductPublicResponse.model_validate(product)
 
 
-def update_stock(db: Session, product_id: int, new_stock: int) -> ProductPublicResponse:
+def update_stock(product_id: int, new_stock: int) -> ProductPublicResponse:
     """
     Update the stock of a product.
     :param db: Database session
@@ -197,7 +200,7 @@ def update_stock(db: Session, product_id: int, new_stock: int) -> ProductPublicR
         )
         raise BadRequestException("Stock cannot be negative")
 
-    product = _get_one_product(db, product_id)
+    product = _get_one_product(product_id)
     product.stock = new_stock
     db.commit()
     db.refresh(product)
@@ -207,7 +210,7 @@ def update_stock(db: Session, product_id: int, new_stock: int) -> ProductPublicR
 
 
 def adjust_stock(
-    db: Session, product_id: int, quantity: int, reason: str = "Manual"
+    product_id: int, quantity: int, reason: str = "Manual"
 ) -> ProductPublicResponse:
     """
     Adjust the stock of a product by a specified quantity.
@@ -225,7 +228,7 @@ def adjust_stock(
             "Adjustment quantity cannot be zero. No change made to stock."
         )
 
-    product = _get_one_product(db, product_id)
+    product = _get_one_product(product_id)
 
     new_stock: int = product.stock + quantity
     if new_stock < 0:
@@ -254,7 +257,6 @@ def adjust_stock(
 
 
 async def upload_image(
-    db: Session,
     product_id: int,
     file: UploadFile = File(...),
 ) -> ProductImageResponse:
@@ -264,7 +266,7 @@ async def upload_image(
     ALLOWED_MIME_TYPES = {"image/jpeg", "image/png", "image/gif"}
 
     # Validar producto
-    product = _get_one_product(db, product_id)
+    product = _get_one_product(product_id)
 
     # Validar nombre de archivo
     if not file.filename:
@@ -336,15 +338,15 @@ async def upload_image(
             pass
 
 
-def get_product_images(db: Session, product_id: int) -> List[ProductImageResponse]:
-    product = _get_one_product(db, product_id)
+def get_product_images(product_id: int) -> List[ProductImageResponse]:
+    product = _get_one_product(product_id)
     images: List[ProductImage] = product.images
 
     return [ProductImageResponse.model_validate(image) for image in images]
 
 
-def delete_image(db: Session, product_id: int, image_id: int) -> None:
-    product = _get_one_product(db, product_id)
+def delete_image(product_id: int, image_id: int) -> None:
+    product = _get_one_product(product_id)
     image = db.query(ProductImage).filter_by(id=image_id, product_id=product.id).first()
 
     if not image:
@@ -369,7 +371,7 @@ def delete_image(db: Session, product_id: int, image_id: int) -> None:
 
 
 def update_image_position(
-    db: Session, image_id: int, new_position: int
+    image_id: int, new_position: int
 ) -> ProductImageResponse:
     image = db.query(ProductImage).filter_by(id=image_id).first()
 
@@ -405,7 +407,7 @@ def update_image_position(
     return ProductImageResponse.model_validate(image)
 
 
-def _get_category_or_400(db: Session, category_id: int) -> Category:
+def _get_category_or_400(category_id: int) -> Category:
     category = db.query(Category).filter_by(id=category_id).first()
     if not category:
         raise BadRequestException(f"Category with ID {category_id} does not exist")
@@ -413,7 +415,7 @@ def _get_category_or_400(db: Session, category_id: int) -> Category:
 
 
 def _get_one_product(
-    db: Session, product_id: int, include_inactives: bool = False
+    product_id: int, include_inactives: bool = False
 ) -> Product:
     if include_inactives:
         product = db.query(Product).filter_by(id=product_id).first()

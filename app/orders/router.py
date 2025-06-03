@@ -1,6 +1,4 @@
 from fastapi import APIRouter, Depends, status
-from sqlalchemy.orm import Session
-from app.core.database import get_db
 from app.core.exceptions import NotFoundException, UnauthorizedException
 from app.integrations.cianbox.schemas import SyncStatusResponse
 from app.orders.models import Order
@@ -17,11 +15,10 @@ router = APIRouter(prefix="/orders", tags=["Orders"])
 @router.post("/", response_model=OrderResponse)
 def create_order_endpoint(
     order_data: OrderCreate,
-    db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
     try:
-        return service.create_order(db, order_data, current_user.id)
+        return service.create_order(order_data, current_user.id)
     except ValueError as e:
         raise NotFoundException(str(e))
 
@@ -31,26 +28,32 @@ def create_order_endpoint(
     response_model=list[OrderResponse],
     dependencies=[Depends(require_roles(RoleEnum.ADMIN))],
 )
-def get_all_orders(db: Session = Depends(get_db)):
-    return service.get_all_orders(db)
+def get_all_orders():
+    return service.get_all_orders()
 
 
 @router.get("/me", response_model=list[OrderResponse])
 def get_my_orders(
-    db: Session = Depends(get_db), current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user)
 ):
-    return service.get_order_by_user_id(db, current_user.id)
+    return service.get_order_by_user_id(current_user.id)
 
 
-@router.get("/{order_id}", response_model=OrderResponse)
+@router.get("/{order_id}")
 def get_order_by_id(
     order_id: int,
-    db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    return service.get_order(db, order_id, current_user)
+    return service.get_order(order_id, current_user)
 
 
-@router.post("/orders/{order_id}/sync/cianbox", response_model=SyncStatusResponse)
-def sync_order_cianbox(order_id: int, db: Session = Depends(get_db), current_user: User = Depends(dependency=get_current_user)):
-    return service.sync_order_with_cianbox(db, order_id)
+@router.post(
+    "/orders/{order_id}/sync/cianbox",
+    response_model=SyncStatusResponse,
+    status_code=status.HTTP_202_ACCEPTED,
+    dependencies=[Depends(require_roles(RoleEnum.ADMIN, RoleEnum.SELLER))],
+)
+def sync_order_cianbox(
+    order_id: int,
+):
+    return service.sync_order_with_cianbox(order_id)

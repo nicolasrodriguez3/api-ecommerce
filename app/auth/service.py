@@ -11,25 +11,27 @@ from app.core.security import (
 )
 from app.core.exceptions import NotFoundException, UnauthorizedException
 from datetime import datetime, timedelta, timezone
+from app.core import db_connection
 
+db: Session = db_connection.session
 
-def authenticate_user(email: str, password: str, db: Session):
+def authenticate_user(email: str, password: str):
     user = db.query(User).filter(User.email == email).first()
     if not user or not verify_password(password, user.hashed_password):
         raise UnauthorizedException("Incorrect email or password")
     return user
 
 
-def login_user(form_data: OAuth2PasswordRequestForm, db: Session):
-    user = authenticate_user(form_data.username, form_data.password, db)
+def login_user(form_data: OAuth2PasswordRequestForm):
+    user = authenticate_user(form_data.username, form_data.password)
     access_token = create_token_pair(user.id)
     
-    save_refresh_token(access_token.refresh_token, user.id, db)
+    save_refresh_token(access_token.refresh_token, user.id)
     
     return access_token
 
 
-def refresh_token(token: str, db: Session):
+def refresh_token(token: str):
     try:
         payload = decode_token(token)
         if payload.get("type") != "refresh":
@@ -47,7 +49,7 @@ def refresh_token(token: str, db: Session):
     return {"access_token": new_access_token, "token_type": "bearer"}
 
 
-def save_refresh_token(token: str, user_id: int, db: Session):
+def save_refresh_token(token: str, user_id: int):
     expires_at = datetime.now(timezone.utc) + timedelta(days=7)
     db_token = RefreshToken(
         token=token,

@@ -1,5 +1,5 @@
 from datetime import datetime
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 from app.core.exceptions import BadRequestException, NotFoundException, UnauthorizedException
 from app.integrations.cianbox.schemas import SyncResponse, SyncStatusResponse
 from app.integrations.cianbox.sync_order import sync_order
@@ -7,9 +7,12 @@ from app.orders.models import Order, OrderItem, SyncStatus
 from app.orders.schemas import OrderCreate
 from app.products.models import Product
 from app.users.models import User
+from app.users.roles import RoleEnum
+from app.core import db_connection
 
+db: Session = db_connection.session
 
-def create_order(db: Session, order_data: OrderCreate, user_id: int) -> Order:
+def create_order(order_data: OrderCreate, user_id: int) -> Order:
     new_order = Order(
         user_id=user_id,
         total_amount=0.0,  # Inicialmente 0, se actualizará después
@@ -63,33 +66,33 @@ def create_order(db: Session, order_data: OrderCreate, user_id: int) -> Order:
     return new_order
 
 
-def get_all_orders(db: Session) -> list[Order]:
+def get_all_orders() -> list[Order]:
     return db.query(Order).all()
 
 
-def get_order(db: Session, order_id: int, user: User) -> Order:
+def get_order(order_id: int, user: User):
     order = db.query(Order).filter(Order.id == order_id).first()
     if not order:
         raise NotFoundException(f"Order with ID {order_id} not found")
 
     # Solo admins o el mismo usuario pueden ver
-    if order.user_id != user.id and user.role.name not in [
-        "admin",
-        "owner",
+    if order.user_id != user.id and user.role not in [
+        RoleEnum.ADMIN,
+        RoleEnum.OWNER,
     ]:
         raise UnauthorizedException("You do not have permission to view this order")
 
     return order
 
 
-def get_order_by_user_id(db: Session, user_id: int) -> list[Order]:
+def get_order_by_user_id(user_id: int) -> list[Order]:
     orders = db.query(Order).filter(Order.user_id == user_id).all()
     if not orders:
         raise NotFoundException(f"No orders found for user ID {user_id}")
     return orders
 
 
-def sync_order_with_cianbox(db: Session, order_id: int):
+def sync_order_with_cianbox(order_id: int):
     order = db.query(Order).filter(Order.id == order_id).first()
     if not order:
         raise NotFoundException(f"Order with ID {order_id} not found")

@@ -2,7 +2,7 @@ from typing import List
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
-from app.core.database import get_db
+from app.core import db_connection
 from app.auth.dependencies import get_current_user
 from app.users.roles import RoleEnum
 from app.users.schemas import UserCreate, UserResponse, UserUpdate
@@ -13,11 +13,16 @@ from app.users.service import (
     update_user as service_update_user,
     delete_user as service_delete_user,
 )
-from app.core.exceptions import BadRequestException, ForbiddenException, NotFoundException
+from app.core.exceptions import (
+    BadRequestException,
+    ForbiddenException,
+    NotFoundException,
+)
 from app.users.models import User
 
 router = APIRouter(prefix="/users", tags=["Users"])
 
+db: Session = db_connection.session
 
 @router.get("/me", response_model=UserResponse)
 def get_me(current_user: User = Depends(get_current_user)):
@@ -28,20 +33,19 @@ def get_me(current_user: User = Depends(get_current_user)):
 
 
 @router.post("/", response_model=UserResponse, status_code=status.HTTP_201_CREATED)
-def register_new_user(user: UserCreate, db: Session = Depends(get_db)):
+def register_new_user(user: UserCreate):
     """
     Create a new user.
 
     Handles username and email duplication checks via the service layer.
     """
-    return service_create_user(db=db, user_data=user)
+    return service_create_user(user_data=user)
 
 
 @router.get("/", response_model=List[UserResponse])
 def read_users_list(
     skip: int = 0,
     limit: int = 100,
-    db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
     """
@@ -55,14 +59,13 @@ def read_users_list(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Not authorized to access this resource",
         )
-    users = service_get_users(db, skip=skip, limit=limit)
+    users = service_get_users(skip=skip, limit=limit)
     return users
 
 
 @router.get("/{user_id}", response_model=UserResponse)
 def read_user_by_id(
     user_id: int,
-    db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
     """
@@ -72,9 +75,7 @@ def read_user_by_id(
     - Regular users can only retrieve their own data.
     """
     # Allow user to get their own data or admin to get any user's data
-    if (
-        current_user.id != user_id and current_user.role != RoleEnum.ADMIN.value
-    ):
+    if current_user.id != user_id and current_user.role != RoleEnum.ADMIN.value:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Not authorized to access this user's data",
@@ -90,7 +91,6 @@ def read_user_by_id(
 def update_existing_user(
     user_id: int,
     user_update_data: UserUpdate,
-    db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
     """
@@ -101,29 +101,18 @@ def update_existing_user(
     - Username and email uniqueness are checked by the service layer.
     """
     # Allow user to update their own data or admin to update any user's data
-    if (
-        current_user.id != user_id and current_user.role != RoleEnum.ADMIN.value
-    ):
+    if current_user.id != user_id and current_user.role != RoleEnum.ADMIN.value:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Not authorized to update this user",
         )
 
-    try:
-        updated_user = service_update_user(
-            db=db, user_id=user_id, user_update=user_update_data
-        )
-        return updated_user
-    except NotFoundException as e:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
-    except BadRequestException as e:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
+    return service_update_user(user_id=user_id, user_update=user_update_data)
 
 
 @router.delete("/{user_id}", response_model=None, status_code=204)
 def delete_existing_user(
     user_id: int,
-    db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
     """
@@ -134,6 +123,6 @@ def delete_existing_user(
     if current_user.role != RoleEnum.ADMIN.value:
         raise ForbiddenException("Not authorized to delete users")
     try:
-        return service_delete_user(db=db, user_id=user_id)
+        return service_delete_user(user_id=user_id)
     except NotFoundException as e:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))

@@ -1,10 +1,13 @@
 from sqlalchemy.orm import Session
 from app.categories import models, schemas
 from app.core.exceptions import ConflictException, NotFoundException
+from app.core import db_connection
 
+
+db: Session = db_connection.session
 
 def create_category(
-    db: Session, category_data: schemas.CategoryCreate
+    category_data: schemas.CategoryCreate
 ) -> schemas.CategoryResponse:
     name: str = category_data.name
 
@@ -27,7 +30,7 @@ def get_all_categories(db: Session) -> list[schemas.CategoryResponse]:
 
 
 def get_categories(
-    db: Session, skip: int = 0, limit: int = 10
+    skip: int = 0, limit: int = 10
 ) -> schemas.PaginatedCategoryResponse:
     query = db.query(models.Category)
     total = query.count()
@@ -37,7 +40,7 @@ def get_categories(
     return schemas.PaginatedCategoryResponse(data=categories, total=total)
 
 
-def get_category_by_id(db: Session, category_id: int) -> schemas.CategoryResponse:
+def get_category_by_id(category_id: int) -> schemas.CategoryResponse:
     category = db.query(models.Category).filter_by(id=category_id).first()
     if not category:
         raise NotFoundException(f"Category with ID {category_id} not found")

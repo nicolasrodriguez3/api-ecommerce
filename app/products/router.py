@@ -2,7 +2,7 @@ from typing import Annotated, List
 from fastapi import APIRouter, Depends, File, Query, UploadFile
 from sqlalchemy.orm import Session
 from app.auth.dependencies import require_roles
-from app.core.database import get_db
+from app.core import db_connection
 from app.products import service
 from app.products.schemas import (
     ProductImageResponse,
@@ -16,6 +16,7 @@ from app.users.roles import RoleEnum
 
 router = APIRouter(prefix="/products", tags=["Products"])
 
+db: Session = db_connection.session
 
 @router.get("/")
 def get_products(
@@ -26,10 +27,8 @@ def get_products(
     max_price: float | None = Query(None, ge=0),
     order_by: str = Query("id"),
     order_dir: str = Query("asc", pattern="^(asc|desc)$"),
-    db: Session = Depends(get_db),
 ) -> PaginatedProductResponse:
     products, page, total_pages = service.get_products(
-        db,
         skip=skip,
         limit=limit,
         search=search,
@@ -48,9 +47,9 @@ def get_products(
 
 @router.get("/{product_id}")
 def get_product(
-    product_id: int, db: Session = Depends(get_db)
+    product_id: int
 ) -> ProductPublicResponse:
-    return service.get_by_id(db, product_id)
+    return service.get_by_id(product_id)
 
 
 @router.post(
@@ -58,16 +57,15 @@ def get_product(
 )
 def create_product(
     product: ProductCreate,
-    db: Session = Depends(get_db),
 ) -> ProductPublicResponse:
-    return service.create(product, db)
+    return service.create(product)
 
 
 @router.put("/{product_id}")
 def update_product(
-    product_id: int, updated_data: ProductUpdate, db: Session = Depends(get_db)
+    product_id: int, updated_data: ProductUpdate
 ):
-    return service.update(product_id, updated_data, db)
+    return service.update(product_id, updated_data)
 
 
 @router.delete(
@@ -77,9 +75,8 @@ def update_product(
 )
 def delete_product(
     product_id: int,
-    db: Session = Depends(get_db),
 ):
-    return service.delete(product_id, db)
+    return service.delete(product_id)
 
 
 @router.patch(
@@ -89,9 +86,8 @@ def delete_product(
 )
 def restore_product(
     product_id: int,
-    db: Session = Depends(get_db),
 ) -> ProductPublicResponse:
-    return service.restore(product_id, db)
+    return service.restore(product_id)
 
 
 # Images
@@ -99,30 +95,27 @@ def restore_product(
 async def upload_image(
     product_id: int,
     file: UploadFile = File(...),
-    db: Session = Depends(get_db),
 ) -> ProductImageResponse:
-    return await service.upload_image(db, product_id, file)
+    return await service.upload_image(product_id, file)
 
 
 @router.get("/{product_id}/images")
 def get_images(
     product_id: int,
-    db: Session = Depends(get_db),
 ) -> List[ProductImageResponse]:
-    return service.get_product_images(db, product_id)
+    return service.get_product_images(product_id)
 
 
 @router.delete("/{product_id}/images/{image_id}", status_code=204)
 def delete_image(
     product_id: int,
     image_id: int,
-    db: Session = Depends(get_db),
 ) -> None:
-    return service.delete_image(db, product_id, image_id)
+    return service.delete_image(product_id, image_id)
 
 
 @router.patch("/images/{image_id}")
 def update_image_position(
-    image_id: int, new_position: int, db: Session = Depends(get_db)
+    image_id: int, new_position: int
 ) -> ProductImageResponse:
-    return service.update_image_position(db, image_id, new_position)
+    return service.update_image_position(image_id, new_position)
