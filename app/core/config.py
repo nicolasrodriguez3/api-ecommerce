@@ -4,10 +4,20 @@ from functools import lru_cache
 
 class Settings(BaseSettings):
     app_name: str = "Ecommerce API"
+    version: str = "1.0.0"
     host: str = "127.0.0.1"
     port: int = 8000
     reload: bool = True
+    
+    # Environment settings
+    environment: str = "development" # Options: development, production, testing
+    debug: bool = True  # Enable or disable debug mode
+    
+    # Database settings
     database_url: str = "sqlite:///./ecommerce.db"
+    database_echo: bool = False  # Enable SQLAlchemy echo for debugging
+    
+    # Security settings
     jwt_secret: str
     jwt_algorithm: str = "HS256"
     access_token_expire_minutes: int = 30
@@ -21,6 +31,16 @@ class Settings(BaseSettings):
     def cloudinary_url(self) -> str:
         return f"cloudinary://{self.cloudinary_api_key}:{self.cloudinary_api_secret}@{self.cloudinary_cloud_name}"
 
+    @property
+    def is_development(self) -> bool:
+        """Verificar si estamos en desarrollo."""
+        return self.environment.lower() == "development"
+    
+    @property
+    def is_production(self) -> bool:
+        """Verificar si estamos en producción."""
+        return self.environment.lower() == "production"
+    
     class Config:
         env_file = ".env"
 

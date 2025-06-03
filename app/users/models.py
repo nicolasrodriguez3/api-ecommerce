@@ -3,13 +3,14 @@ from sqlalchemy import ForeignKey, String
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from datetime import datetime
 from app.auth.models import RefreshToken
-from app.core.database import Base
+
 from app.customers.models import Customer
+from app.models.base import BaseModel
 from app.orders.models import Order
 from app.users.roles import RoleEnum
 
 
-class User(Base):
+class User(BaseModel):
     __tablename__ = "users"
 
     id: Mapped[int] = mapped_column(primary_key=True, index=True)
