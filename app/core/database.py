@@ -47,41 +47,14 @@ class Base(DeclarativeBase):
 
 def get_db() -> Generator[Session, None, None]:
     """
-    Dependencia para obtener sesión de base de datos.
-    
-    Yields:
-        Session: Sesión de SQLAlchemy
-        
-    Note:
-        Esta función maneja automáticamente la apertura y cierre de la sesión.
-        En caso de error, hace rollback automáticamente.
+    Dependencia para la base de datos.
     """
     db: Session = SessionLocal()
     try:
         yield db
     except Exception as e:
-        logger.error(f"Database error: {e}")
-        db.rollback()
+        db.rollback()  # Revertir cambios en caso de error
+        logger.error(f"Error en la sesión de base de datos: {e}")
         raise
     finally:
-        db.close()
-
-@contextmanager
-def get_db_context():
-    """
-    Context manager para uso manual de la base de datos.
-    
-    Usage:
-        with get_db_context() as db:
-            # usar db aquí
-    """
-    db = SessionLocal()
-    try:
-        yield db
-        db.commit()
-    except Exception as e:
-        logger.error(f"Database error: {e}")
-        db.rollback()
-        raise
-    finally:
-        db.close()
+        db.close()  # Cerrar la sesión al finalizar

@@ -4,6 +4,7 @@ from jose import JWTError, jwt
 from passlib.context import CryptContext
 from fastapi import HTTPException, status
 
+from app.auth.schemas import TokenData
 from app.core.config import get_settings
 
 settings = get_settings()
@@ -39,13 +40,16 @@ def create_access_token(data: dict, expires_delta: Optional[timedelta] = None):
     return encoded_jwt
 
 
-def verify_token(token: str) -> Optional[str]:
+def verify_token(token: str) -> Optional[TokenData]:
     """Verifica y decodifica el token JWT"""
     try:
-        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        payload = jwt.decode(token, SECRET_KEY, ALGORITHM)
         user_id: str | None = payload.get("sub")
         if user_id is None:
             return None
-        return user_id
-    except JWTError:
+        token_data = TokenData(user_id=(user_id))
+    except (JWTError, ValueError) as e:
+        print(f"Error al decodificar el token: {e}")
         return None
+
+    return token_data

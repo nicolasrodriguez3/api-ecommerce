@@ -1,34 +1,56 @@
+from typing import Annotated
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session
 from app.core.database import get_db
 from app.auth.service import AuthService
-from app.auth.dependencies import get_current_active_user
+from app.users.models import UserRole
+from app.users.schemas import NewUserCreate, UserCreate, UserResponse
 from app.auth.schemas import Token
-from app.users.schemas import UserCreate, UserResponse
-from app.users.models import User
+from app.auth.dependencies import CurrentActiveUser
+from app.users.service import UserService
 
 router = APIRouter(prefix="/auth", tags=["autenticación"])
 
-@router.post("/register", response_model=UserResponse)
-def register(user_data: UserCreate, db: Session = Depends(get_db)):
+
+@router.post(
+    "/register", response_model=UserResponse, status_code=status.HTTP_201_CREATED
+)
+async def register(user_data: NewUserCreate, db: Annotated[Session, Depends(get_db)]):
     """Registra un nuevo usuario"""
-    auth_service = AuthService(db)
-    user = auth_service.create_user(user_data)
+    new_user = UserCreate(
+        email=user_data.email, password=user_data.password, roles=[UserRole.CUSTOMER]
+    )
+    
+    user_service = UserService(db)
+    user = await user_service.create_user(new_user)
     return user
 
+
 @router.post("/login", response_model=Token)
-def login(
-    form_data: OAuth2PasswordRequestForm = Depends(),
-    db: Session = Depends(get_db)
+async def login(
+    form_data: Annotated[OAuth2PasswordRequestForm, Depends()],
+    db: Annotated[Session, Depends(get_db)],
 ):
     """Inicia sesión y obtiene token de acceso"""
     auth_service = AuthService(db)
-    return auth_service.login(form_data.username, form_data.password)
+    return await auth_service.login(form_data.username, form_data.password)
 
-@router.get("/me", response_model=UserResponse)
-def get_current_user_info(
-    current_user: User = Depends(get_current_active_user)
-):
-    """Obtiene información del usuario autenticado"""
-    return current_user
+
+@router.post("/refresh", response_model=Token)
+async def refresh_token(current_user: CurrentActiveUser):
+    """Refresca el token de acceso"""
+    from datetime import timedelta
+    from app.auth.utils import create_access_token
+    from app.core.config import get_settings
+
+    settings = get_settings()
+
+    access_token_expires = timedelta(minutes=settings.access_token_expire_minutes)
+    access_token = create_access_token(
+        data={"sub": current_user.id}, expires_delta=access_token_expires
+    )
+
+    return Token(
+        access_token=access_token, expires_in=settings.access_token_expire_minutes * 60
+    )

@@ -81,30 +81,30 @@ class AuthService:
     def __init__(self, db: Session):
         self.user_repo = UserRepository(db)
 
-    def authenticate_user(self, username: str, password: str) -> Optional[User]:
+    async def authenticate_user(self, email: str, password: str) -> Optional[User]:
         """Autentica usuario por email y contraseña"""
-        user = self.user_repo.get_by_email(username)
+        user = await self.user_repo.get_by_email(email)
 
         if not user or not verify_password(password, user.hashed_password):
             return None
         return user
 
-    def create_user(self, user_data: UserCreate) -> User:
-        """Crea un nuevo usuario"""
-        # Verificar si ya existe
-        if self.user_repo.get_by_email(user_data.email):
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Usuario o email ya registrado",
-            )
+    # async def create_user(self, user_data: UserCreate) -> User:
+    #     """Crea un nuevo usuario"""
+    #     # Verificar si ya existe
+    #     if await self.user_repo.get_by_email(user_data.email):
+    #         raise HTTPException(
+    #             status_code=status.HTTP_400_BAD_REQUEST,
+    #             detail="Usuario o email ya registrado",
+    #         )
 
-        hashed_password = get_password_hash(user_data.password)
-        user_data.password = hashed_password
-        return self.user_repo.create(user_data.model_dump())
+    #     hashed_password = get_password_hash(user_data.password)
+    #     user_data.password = hashed_password
+    #     return await self.user_repo.create(user_data, hashed_password)
 
-    def login(self, email: str, password: str) -> Token:
+    async def login(self, email: str, password: str) -> Token:
         """Realiza login y retorna token"""
-        user = self.authenticate_user(email, password)
+        user = await self.authenticate_user(email, password)
         if not user:
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
@@ -119,7 +119,7 @@ class AuthService:
 
         access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
         access_token = create_access_token(
-            data={"sub": user.id}, expires_delta=access_token_expires
+            data={"sub": str(user.id)}, expires_delta=access_token_expires
         )
 
         return Token(

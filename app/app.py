@@ -10,6 +10,7 @@ from sqlalchemy.exc import SQLAlchemyError
 from app.core.config import get_settings
 
 
+from app.core.database import Base, engine
 from app.core.exceptions import AppException
 # from app.products.router import router as products_router
 # from app.categories.router import router as categories_router
@@ -23,7 +24,8 @@ from app.api.v1.auth import router as auth_router
 
 
 # Crear tablas
-# Base.metadata.create_all(bind=engine)
+Base.metadata.create_all(bind=engine)
+
 settings = get_settings()
 logger = logging.getLogger(__name__)
 

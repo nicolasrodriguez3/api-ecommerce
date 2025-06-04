@@ -132,7 +132,7 @@ class UserService:
         self.db = db
         self.user_repo = UserRepository(db)
     
-    def create_user(self, user_data: UserCreate) -> UserResponse:
+    async def create_user(self, user_data: UserCreate) -> UserResponse:
         """
         Crear un nuevo usuario.
         
@@ -148,20 +148,19 @@ class UserService:
         logger.info(f"Creating user with email: {user_data.email}")
         
         # Validar email único
-        if self.user_repo.get_by_email(user_data.email):
+        if await self.user_repo.get_by_email(user_data.email):
             raise AlreadyExistsError("User", "email", user_data.email)
         
         # Crear usuario
-        new_user = user_data.model_dump()
-        new_user["hashed_password"] = get_password_hash(user_data.password)
-        print(new_user)
-        del new_user["password"]  # Eliminar el campo de contraseña sin hash
-        db_user = self.user_repo.create(new_user)
+        hashed_password = get_password_hash(user_data.password)
+        del user_data.password
+        
+        db_user = await self.user_repo.create(user_data, hashed_password)
         logger.info(f"User created successfully with ID: {db_user.id}")
         
-        return UserResponse.model_validate(db_user)
+        return UserResponse.from_user(db_user)
     
-    def get_user_by_id(self, user_id: int) -> UserResponse:
+    async def get_user_by_id(self, user_id: int) -> UserResponse:
         """
         Obtener usuario por ID.
         
@@ -174,13 +173,13 @@ class UserService:
         Raises:
             NotFoundError: Si el usuario no existe
         """
-        db_user = self.user_repo.get_by_id(user_id)
+        db_user = await self.user_repo.get_by_id(user_id)
         if not db_user:
             raise NotFoundError("User", user_id)
         
-        return UserResponse.model_validate(db_user)
+        return UserResponse.from_user(db_user)
     
-    def get_users(
+    async def get_users(
         self, 
         *, 
         skip: int = 0, 
@@ -199,13 +198,13 @@ class UserService:
             List[UserResponse]: Lista de usuarios
         """
         if active_only:
-            db_users = self.user_repo.get_active_users(skip=skip, limit=limit)
+            db_users = await self.user_repo.get_active_users(skip=skip, limit=limit)
         else:
-            db_users = self.user_repo.get_multi(skip=skip, limit=limit)
+            db_users = await self.user_repo.get_users(skip=skip, limit=limit)
         
-        return [UserResponse.model_validate(user) for user in db_users]
+        return [UserResponse.from_user(user) for user in db_users]
     
-    def update_user(self, user_id: int, user_data: UserUpdate) -> UserResponse:
+    async def update_user(self, user_id: int, user_data: UserUpdate) -> UserResponse:
         """
         Actualizar usuario.
         
@@ -223,22 +222,22 @@ class UserService:
         logger.info(f"Updating user with ID: {user_id}")
         
         # Verificar que el usuario existe
-        if not self.user_repo.exists(user_id):
+        if not await self.user_repo.exists(user_id):
             raise NotFoundError("User", user_id)
         
         # Validar email único si se está actualizando
         if user_data.email:
-            existing_user = self.user_repo.get_by_email(user_data.email)
-            if existing_user and existing_user.id != user_id:
+            existing_user = await self.user_repo.get_by_email(user_data.email)
+            if existing_user is not None and getattr(existing_user, "id", None) != user_id:
                 raise AlreadyExistsError("User", "email", user_data.email)
         
         # Actualizar usuario
-        db_user = self.user_repo.update(user_id, user_data.model_dump(exclude_unset=True))
+        db_user = await self.user_repo.update(user_id, user_data)
         logger.info(f"User updated successfully: {user_id}")
         
-        return UserResponse.model_validate(db_user)
+        return UserResponse.from_user(db_user)
     
-    def delete_user(self, user_id: int) -> None:
+    async def delete_user(self, user_id: int) -> None:
         """
         Eliminar usuario.
         
@@ -250,7 +249,7 @@ class UserService:
         """
         logger.info(f"Deleting user with ID: {user_id}")
         
-        if not self.user_repo.delete(user_id):
+        if not await self.user_repo.delete(user_id):
             raise NotFoundError("User", user_id)
         
         logger.info(f"User deleted successfully: {user_id}")
