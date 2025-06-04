@@ -114,8 +114,9 @@
 
 
 import logging
-from typing import List, Optional
+from typing import List
 from sqlalchemy.orm import Session
+from app.auth.utils import get_password_hash
 from app.core.exceptions import NotFoundError, AlreadyExistsError
 from app.users.repository import UserRepository
 from app.users.schemas import UserCreate, UserUpdate, UserResponse
@@ -150,8 +151,12 @@ class UserService:
         if self.user_repo.get_by_email(user_data.email):
             raise AlreadyExistsError("User", "email", user_data.email)
         
-         # Crear usuario
-        db_user = self.user_repo.create(user_data.model_dump())
+        # Crear usuario
+        new_user = user_data.model_dump()
+        new_user["hashed_password"] = get_password_hash(user_data.password)
+        print(new_user)
+        del new_user["password"]  # Eliminar el campo de contraseña sin hash
+        db_user = self.user_repo.create(new_user)
         logger.info(f"User created successfully with ID: {db_user.id}")
         
         return UserResponse.model_validate(db_user)

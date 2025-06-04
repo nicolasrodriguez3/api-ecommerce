@@ -14,33 +14,68 @@ router = APIRouter(prefix="/users", tags=["users"])
     response_model=UserResponse,
     summary="Obtener usuario",
     description="Obtiene un usuario por su ID",
-    dependencies=[Depends(get_current_user)]
+    dependencies=[Depends(get_current_user)],
 )
 async def get_user(
-    user_id: int,
-    user_service: UserService = Depends(get_user_service)
+    user_id: int, user_service: UserService = Depends(get_user_service)
 ) -> UserResponse:
     """Obtener usuario por ID."""
     try:
         return user_service.get_user_by_id(user_id)
     except NotFoundError as e:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=e.message
-        )
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=e.message)
 
 
 @router.get(
     "/",
     response_model=List[UserResponse],
     summary="Listar usuarios",
-    description="Obtiene una lista paginada de usuarios"
+    description="Obtiene una lista paginada de usuarios",
 )
 async def get_users(
     skip: int = Query(0, ge=0, description="Registros a saltar"),
     limit: int = Query(100, ge=1, le=1000, description="Límite de registros"),
     active_only: bool = Query(False, description="Solo usuarios activos"),
-    user_service: UserService = Depends(get_user_service)
+    user_service: UserService = Depends(get_user_service),
 ) -> List[UserResponse]:
     """Obtener lista de usuarios."""
     return user_service.get_users(skip=skip, limit=limit, active_only=active_only)
+
+
+@router.get(
+    "/me",
+    response_model=UserResponse,
+    summary="Obtener usuario actual",
+    description="Obtiene los detalles del usuario autenticado",
+)
+async def get_current_user_details(
+    current_user: UserResponse = Depends(get_current_user),
+) -> UserResponse:
+    """Obtener detalles del usuario autenticado."""
+    return current_user
+
+
+@router.post(
+    "/",
+    response_model=UserResponse,
+    status_code=status.HTTP_201_CREATED,
+    summary="Crear usuario",
+    description="Crea un nuevo usuario en el sistema"
+)
+async def create_user(
+    user_data: UserCreate,
+    user_service: UserService = Depends(get_user_service)
+) -> UserResponse:
+    """Crear un nuevo usuario."""
+    try:
+        return user_service.create_user(user_data)
+    except AlreadyExistsError as e:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=e.message
+        )
+    except ValidationError as e:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=e.message
+        )

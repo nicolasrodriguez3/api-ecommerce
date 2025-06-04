@@ -19,6 +19,7 @@ from app.core.exceptions import AppException
 # from app.auth.router import router as auth_router
 # from app.orders.router import router as orders_router
 from app.api.v1.users import router as users_router
+from app.api.v1.auth import router as auth_router
 
 
 # Crear tablas
@@ -94,6 +95,7 @@ async def shutdown_event():
 
 # Routers
 app.include_router(users_router)
+app.include_router(auth_router)
 
 
 # Endpoints de salud

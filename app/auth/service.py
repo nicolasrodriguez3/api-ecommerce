@@ -62,10 +62,13 @@
 
 from datetime import timedelta
 from typing import Optional
+from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session
 from fastapi import HTTPException, status
+from app.users.models import User
 from app.users.repository import UserRepository
-from app.users.schemas import UserCreate, Token
+from app.users.schemas import UserCreate
+from app.auth.schemas import Token
 from app.auth.utils import (
     verify_password,
     get_password_hash,
@@ -96,11 +99,12 @@ class AuthService:
             )
 
         hashed_password = get_password_hash(user_data.password)
-        return self.user_repo.create(user_data, hashed_password)
+        user_data.password = hashed_password
+        return self.user_repo.create(user_data.model_dump())
 
-    def login(self, username: str, password: str) -> Token:
+    def login(self, email: str, password: str) -> Token:
         """Realiza login y retorna token"""
-        user = self.authenticate_user(username, password)
+        user = self.authenticate_user(email, password)
         if not user:
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
@@ -115,7 +119,7 @@ class AuthService:
 
         access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
         access_token = create_access_token(
-            data={"sub": user.username}, expires_delta=access_token_expires
+            data={"sub": user.id}, expires_delta=access_token_expires
         )
 
         return Token(
