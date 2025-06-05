@@ -6,10 +6,11 @@ from datetime import datetime
 
 from app.core.database import Base
 from app.models.base import BaseModel
-from app.users.roles import RoleEnum
+
 
 class UserRole(str, enum.Enum):
     """Enumeration for user roles in the application."""
+
     ADMIN = "admin"
     OWNER = "owner"
     SELLER = "seller"
@@ -18,11 +19,12 @@ class UserRole(str, enum.Enum):
 
 # Tabla de asociación para roles múltiples (many-to-many)
 user_roles: Table = Table(
-    'user_roles',
+    "user_roles",
     Base.metadata,
-    Column('user_id', ForeignKey('users.id'), primary_key=True),
-    Column('role_id', ForeignKey('roles.id'), primary_key=True)
+    Column("user_id", ForeignKey("users.id"), primary_key=True),
+    Column("role_id", ForeignKey("roles.id"), primary_key=True),
 )
+
 
 class Role(BaseModel):
     __tablename__ = "roles"
@@ -31,7 +33,9 @@ class Role(BaseModel):
     description: Mapped[str] = mapped_column(String, nullable=True)
 
     # Relación con usuarios
-    users: Mapped[List["User"]] = relationship("User", secondary=user_roles, back_populates="roles")
+    users: Mapped[List["User"]] = relationship(
+        "User", secondary=user_roles, back_populates="roles"
+    )
 
 
 class User(BaseModel):
@@ -41,14 +45,15 @@ class User(BaseModel):
     hashed_password: Mapped[str] = mapped_column(String(255), nullable=False)
     is_active: Mapped[bool] = mapped_column(default=True)
 
-
     # customer: Mapped[Customer] = relationship(
     #     "Customer", uselist=False, back_populates="user"
     # )
 
     # orders: Mapped[list["Order"]] = relationship("Order", back_populates="user")
 
-    roles: Mapped[List["Role"]]  = relationship("Role", secondary=user_roles, back_populates="users")
+    roles: Mapped[List["Role"]] = relationship(
+        "Role", secondary=user_roles, back_populates="users"
+    )
 
     def has_role(self, role: UserRole) -> bool:
         """Verificar si el usuario tiene un rol específico"""

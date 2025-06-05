@@ -9,9 +9,9 @@ from app.auth.dependencies import (
 )
 from app.core.database import get_db
 from app.core.exceptions import NotFoundError, AlreadyExistsError, ValidationError
-from app.users.models import User, UserRole
-from app.users.schemas import UserCreate, UserUpdate, UserResponse
-from app.users.service import UserService
+from app.models.user import User, UserRole
+from app.schemas.user import UserCreate, UserUpdate, UserResponse
+from app.services.user import UserService
 
 router = APIRouter(prefix="/users", tags=["users"])
 

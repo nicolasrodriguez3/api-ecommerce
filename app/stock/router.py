@@ -11,7 +11,7 @@ from app.products.schemas import (
 )
 from app.stock.service import adjust_stock
 from app.products import service as product_service
-from app.users.models import User
+from app.models.user import User
 from app.users.roles import RoleEnum
 
 router = APIRouter(prefix="/stock", tags=["Stock"])

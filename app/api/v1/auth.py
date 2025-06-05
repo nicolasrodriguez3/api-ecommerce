@@ -3,12 +3,12 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session
 from app.core.database import get_db
-from app.auth.service import AuthService
-from app.users.models import UserRole
-from app.users.schemas import NewUserCreate, UserCreate, UserResponse
-from app.auth.schemas import Token
+from app.services.auth import AuthService
+from app.models.user import UserRole
+from app.schemas.user import NewUserCreate, UserCreate, UserResponse
+from app.schemas.auth import Token
 from app.auth.dependencies import CurrentActiveUser
-from app.users.service import UserService
+from app.services.user import UserService
 
 router = APIRouter(prefix="/auth", tags=["autenticación"])
 
@@ -41,7 +41,7 @@ async def login(
 async def refresh_token(current_user: CurrentActiveUser):
     """Refresca el token de acceso"""
     from datetime import timedelta
-    from app.auth.utils import create_access_token
+    from app.core.security import create_access_token
     from app.core.config import get_settings
 
     settings = get_settings()
@@ -52,5 +52,5 @@ async def refresh_token(current_user: CurrentActiveUser):
     )
 
     return Token(
-        access_token=access_token, expires_in=settings.access_token_expire_minutes * 60
+        access_token=access_token
     )

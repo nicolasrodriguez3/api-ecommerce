@@ -5,7 +5,7 @@ from app.orders.models import Order
 from app.orders.schemas import OrderCreate, OrderResponse
 from app.orders import service
 from app.auth.dependencies import get_current_user
-from app.users.models import User
+from app.models.user import User
 from app.users.roles import RoleEnum
 from app.auth.dependencies import require_roles
 

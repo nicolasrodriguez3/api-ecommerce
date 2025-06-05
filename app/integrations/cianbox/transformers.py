@@ -1,4 +1,4 @@
-from app.users.models import User
+from app.models.user import User
 from app.customers.models import Customer
 
 

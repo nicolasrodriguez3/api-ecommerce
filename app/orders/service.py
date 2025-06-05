@@ -6,7 +6,7 @@ from app.integrations.cianbox.sync_order import sync_order
 from app.orders.models import Order, OrderItem, SyncStatus
 from app.orders.schemas import OrderCreate
 from app.products.models import Product
-from app.users.models import User
+from app.models.user import User
 from app.users.roles import RoleEnum
 from app.core import db_connection
 

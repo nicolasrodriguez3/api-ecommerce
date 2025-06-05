@@ -11,7 +11,7 @@ from app.products.schemas import (
     ProductCreate,
     ProductUpdate,
 )
-from app.users.models import User
+from app.models.user import User
 from app.users.roles import RoleEnum
 
 router = APIRouter(prefix="/products", tags=["Products"])

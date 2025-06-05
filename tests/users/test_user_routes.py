@@ -3,8 +3,8 @@ from fastapi.testclient import TestClient
 from datetime import datetime, timezone
 from app.app import app
 from app.auth.dependencies import get_current_user
-from app.users.models import User
-from app.users.schemas import (
+from app.models.user import User
+from app.schemas.user import (
     UserResponse,
     UserCreate,
     UserUpdate,

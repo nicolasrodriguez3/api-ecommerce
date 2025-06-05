@@ -2,9 +2,8 @@ from datetime import datetime, timedelta
 from typing import Optional
 from jose import JWTError, jwt
 from passlib.context import CryptContext
-from fastapi import HTTPException, status
 
-from app.auth.schemas import TokenData
+from app.schemas.auth import TokenData
 from app.core.config import get_settings
 
 settings = get_settings()

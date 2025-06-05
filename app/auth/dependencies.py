@@ -43,9 +43,9 @@ from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from sqlalchemy.orm import Session
 from typing import Annotated, List, Optional
 from app.core.database import get_db
-from app.users.repository import UserRepository
-from app.auth.utils import verify_token
-from app.users.models import User, UserRole
+from app.repositories.user import UserRepository
+from app.core.security import verify_token
+from app.models.user import User, UserRole
 
 security = HTTPBearer()
 
@@ -72,7 +72,7 @@ async def get_current_user(
     # Buscar usuario en BD
     user_repo = UserRepository(db)
     user_id = int(token_data.user_id)
-    user = await user_repo.get_by_id(user_id)
+    user = await user_repo.get(user_id)
     if user is None:
         raise credentials_exception
 
@@ -128,7 +128,7 @@ async def get_current_user_optional(
 
     user_repo = UserRepository(db)
     user_id = int(token_data.user_id)
-    return await user_repo.get_by_id(user_id)
+    return await user_repo.get(user_id)
 
 
 def require_roles(allowed_roles: List[UserRole]):
@@ -183,7 +183,7 @@ class PermissionChecker:
         if current_user.has_any_role([UserRole.ADMIN, UserRole.OWNER]):
             return True
         # Los usuarios pueden ver su propia información
-        return current_user.id == target_user_id
+        return bool(current_user.id == target_user_id)
     
     @staticmethod
     def can_edit_user(current_user: User, target_user_id: int) -> bool:
@@ -192,11 +192,11 @@ class PermissionChecker:
         if current_user.has_role(UserRole.ADMIN):
             return True
         # Los usuarios pueden editar su propia información
-        return current_user.id == target_user_id
+        return bool(current_user.id == target_user_id)
     
     @staticmethod
     def can_delete_user(current_user: User, target_user_id: int) -> bool:
         """Verificar si el usuario puede eliminar otro usuario"""
         # Solo admins pueden eliminar usuarios y no pueden eliminarse a sí mismos
-        return (current_user.has_role(UserRole.ADMIN) and 
+        return bool(current_user.has_role(UserRole.ADMIN) and 
                 current_user.id != target_user_id)

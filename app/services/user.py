@@ -116,11 +116,11 @@
 import logging
 from typing import List
 from sqlalchemy.orm import Session
-from app.auth.utils import get_password_hash
+from app.core.security import get_password_hash
 from app.core.exceptions import NotFoundError, AlreadyExistsError
-from app.users.repository import UserRepository
-from app.users.schemas import UserCreate, UserUpdate, UserResponse
-from app.users.models import User
+from app.repositories.user import UserRepository
+from app.schemas.user import UserCreate, UserUpdate, UserResponse
+from app.models.user import User
 
 logger = logging.getLogger(__name__)
 
@@ -155,7 +155,7 @@ class UserService:
         hashed_password = get_password_hash(user_data.password)
         del user_data.password
         
-        db_user = await self.user_repo.create(user_data, hashed_password)
+        db_user = await self.user_repo.create_user(user_data, hashed_password)
         logger.info(f"User created successfully with ID: {db_user.id}")
         
         return UserResponse.from_user(db_user)
@@ -173,7 +173,7 @@ class UserService:
         Raises:
             NotFoundError: Si el usuario no existe
         """
-        db_user = await self.user_repo.get_by_id(user_id)
+        db_user = await self.user_repo.get(user_id)
         if not db_user:
             raise NotFoundError("User", user_id)
         
@@ -200,7 +200,7 @@ class UserService:
         if active_only:
             db_users = await self.user_repo.get_active_users(skip=skip, limit=limit)
         else:
-            db_users = await self.user_repo.get_users(skip=skip, limit=limit)
+            db_users = await self.user_repo.get_multi(skip=skip, limit=limit)
         
         return [UserResponse.from_user(user) for user in db_users]
     
@@ -232,7 +232,7 @@ class UserService:
                 raise AlreadyExistsError("User", "email", user_data.email)
         
         # Actualizar usuario
-        db_user = await self.user_repo.update(user_id, user_data)
+        db_user = await self.user_repo.update(user_id, user_data.model_dump(exclude_unset=True))
         logger.info(f"User updated successfully: {user_id}")
         
         return UserResponse.from_user(db_user)
