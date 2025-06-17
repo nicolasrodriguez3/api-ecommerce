@@ -12,6 +12,7 @@ class Settings(BaseSettings):
     # Environment settings
     environment: str = "development" # Options: development, production, testing
     debug: bool = True  # Enable or disable debug mode
+    log_level: str = "INFO"  # Logging level (DEBUG, INFO, WARNING, ERROR, CRITICAL)
     
     # Database settings
     database_url: str = "sqlite:///./ecommerce.db"

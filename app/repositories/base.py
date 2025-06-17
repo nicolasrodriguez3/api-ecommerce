@@ -14,15 +14,15 @@ class BaseRepository(Generic[ModelType], ABC):
         self.db = db
         self.model = model
 
-    # async def create(self, obj_data: Dict[str, Any]) -> ModelType:
-    #     """Crear un nuevo registro."""
-    #     db_obj = self.model(**obj_data)
-    #     self.db.add(db_obj)
-    #     self.db.commit()
-    #     self.db.refresh(db_obj)
-    #     return db_obj
+    async def create(self, obj_data: Dict[str, Any]) -> ModelType:
+        """Crear un nuevo registro."""
+        db_obj = self.model(**obj_data)
+        self.db.add(db_obj)
+        self.db.commit()
+        self.db.refresh(db_obj)
+        return db_obj
 
-    async def get(self, obj_id: int) -> Optional[ModelType]:
+    async def get_by_id(self, obj_id: int) -> Optional[ModelType]:
         """Obtener registro por ID."""
         stmt = select(self.model).where(self.model.id == obj_id)
         return self.db.execute(stmt).scalar_one_or_none()
@@ -56,7 +56,7 @@ class BaseRepository(Generic[ModelType], ABC):
         update_data = {k: v for k, v in obj_data.items() if v is not None}
 
         if not update_data:
-            return await self.get(obj_id)
+            return await self.get_by_id(obj_id)
 
         stmt = update(self.model).where(self.model.id == obj_id).values(**update_data)
         result = self.db.execute(stmt)
@@ -65,7 +65,7 @@ class BaseRepository(Generic[ModelType], ABC):
             return None
 
         self.db.commit()
-        return await self.get(obj_id)
+        return await self.get_by_id(obj_id)
 
     async def delete(self, obj_id: int) -> bool:
         """Eliminar registro."""

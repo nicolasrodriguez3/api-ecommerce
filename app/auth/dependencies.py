@@ -72,7 +72,7 @@ async def get_current_user(
     # Buscar usuario en BD
     user_repo = UserRepository(db)
     user_id = int(token_data.user_id)
-    user = await user_repo.get(user_id)
+    user = await user_repo.get_by_id(user_id)
     if user is None:
         raise credentials_exception
 
@@ -128,7 +128,7 @@ async def get_current_user_optional(
 
     user_repo = UserRepository(db)
     user_id = int(token_data.user_id)
-    return await user_repo.get(user_id)
+    return await user_repo.get_by_id(user_id)
 
 
 def require_roles(allowed_roles: List[UserRole]):

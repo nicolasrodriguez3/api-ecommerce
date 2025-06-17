@@ -1,4 +1,3 @@
-import logging
 from fastapi import FastAPI, Request, status
 from fastapi.responses import JSONResponse
 from contextlib import asynccontextmanager
@@ -12,6 +11,7 @@ from app.core.config import get_settings
 
 from app.core.database import Base, engine
 from app.core.exceptions import AppException
+
 # from app.products.router import router as products_router
 # from app.categories.router import router as categories_router
 # from app.stock.router import router as stock_router
@@ -21,16 +21,15 @@ from app.core.exceptions import AppException
 # from app.orders.router import router as orders_router
 from app.api.v1.users import router as users_router
 from app.api.v1.auth import router as auth_router
+from app.api.v1.products import router as products_router
+from app.core.logger import setup_logger
 
 
 # Crear tablas
 Base.metadata.create_all(bind=engine)
 
 settings = get_settings()
-logger = logging.getLogger(__name__)
-
-
-
+logger = setup_logger(__name__, level=settings.log_level)
 
 
 app = FastAPI(title="Ecommerce API")
@@ -98,7 +97,7 @@ async def shutdown_event():
 # Routers
 app.include_router(users_router)
 app.include_router(auth_router)
-
+app.include_router(products_router)
 
 # Endpoints de salud
 @app.get("/health", tags=["health"])

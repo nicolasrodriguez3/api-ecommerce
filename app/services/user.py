@@ -113,23 +113,22 @@
 
 
 
-import logging
 from typing import List
 from sqlalchemy.orm import Session
+from app.core.logger import setup_logger
 from app.core.security import get_password_hash
 from app.core.exceptions import NotFoundError, AlreadyExistsError
 from app.repositories.user import UserRepository
 from app.schemas.user import UserCreate, UserUpdate, UserResponse
-from app.models.user import User
 
-logger = logging.getLogger(__name__)
+
+logger = setup_logger(__name__)
 
 
 class UserService:
     """Servicio de usuarios con lógica de negocio."""
     
     def __init__(self, db: Session) -> None:
-        self.db = db
         self.user_repo = UserRepository(db)
     
     async def create_user(self, user_data: UserCreate) -> UserResponse:
@@ -173,7 +172,7 @@ class UserService:
         Raises:
             NotFoundError: Si el usuario no existe
         """
-        db_user = await self.user_repo.get(user_id)
+        db_user = await self.user_repo.get_by_id(user_id)
         if not db_user:
             raise NotFoundError("User", user_id)
         
@@ -230,10 +229,13 @@ class UserService:
             existing_user = await self.user_repo.get_by_email(user_data.email)
             if existing_user is not None and getattr(existing_user, "id", None) != user_id:
                 raise AlreadyExistsError("User", "email", user_data.email)
+            
+        if user_data.roles:
+            del user_data.roles
         
         # Actualizar usuario
         db_user = await self.user_repo.update(user_id, user_data.model_dump(exclude_unset=True))
-        logger.info(f"User updated successfully: {user_id}")
+        logger.info(f"User updated successfully. ID: {user_id}")
         
         return UserResponse.from_user(db_user)
     

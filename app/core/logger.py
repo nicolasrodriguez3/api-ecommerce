@@ -4,7 +4,7 @@ import os
 import sys
 
 
-def setup_logger(name: str, level: int = logging.INFO) -> logging.Logger:
+def setup_logger(name: str, level: int | str = logging.INFO) -> logging.Logger:
     """
     Sets up a logger with the specified name and logging level.
 
@@ -13,8 +13,13 @@ def setup_logger(name: str, level: int = logging.INFO) -> logging.Logger:
     :return: Configured logger instance
     """
     logger = logging.getLogger(name)
-    logger.setLevel(level)
-    
+    if logger.hasHandlers():
+        # If the logger already has handlers, return it
+        return logger
+
+    logger_level = logging.getLevelName(level) if isinstance(level, str) else level
+    logger.setLevel(logger_level)
+
     LOGS_PATH = "./logs"
     if not os.path.exists(LOGS_PATH):
         os.makedirs(LOGS_PATH)
@@ -29,7 +34,7 @@ def setup_logger(name: str, level: int = logging.INFO) -> logging.Logger:
     #         "[%(asctime)s] %(levelname)s in %(name)s: %(message)s"
     #     )
     #     handler.setFormatter(formatter)
-        
+
     #     # File handler
     #     file_handler = logging.FileHandler(f"{LOGS_PATH}/{name}.log")
     #     file_handler.setLevel(level)
@@ -45,15 +50,15 @@ def setup_logger(name: str, level: int = logging.INFO) -> logging.Logger:
         when="midnight",
         interval=1,
         backupCount=7,
-        encoding="utf-8"
+        encoding="utf-8",
     )
     handler.setLevel(level)
-    
+
     formatter = logging.Formatter(
         "[%(asctime)s] %(levelname)s in %(name)s: %(message)s",
-        datefmt="%Y-%m-%d %H:%M:%S"
+        datefmt="%Y-%m-%d %H:%M:%S",
     )
     handler.setFormatter(formatter)
     logger.addHandler(handler)
-    
+
     return logger
