@@ -39,16 +39,17 @@ class ProductService:
             data=products, total_elements=total_products, skip=skip, limit=limit
         )
 
-    async def create_product(self, product_data):
+    async def create_product(self, product_data) -> ProductPublicResponse:
         product_dict = product_data.model_dump()
 
         product_db = await self.product_repo.create(product_dict)
         return ProductPublicResponse.model_validate(product_db)
 
-    async def update_product(self, product_id, product_data):
+    async def update_product(self, product_id, product_data) -> ProductPublicResponse:
         product_dict = product_data.model_dump()
-        
-        return await self.product_repo.update(product_id, product_dict)
+
+        product_db = await self.product_repo.update(product_id, product_dict)
+        return ProductPublicResponse.model_validate(product_db)
 
     async def delete_product(self, product_id):
         return await self.product_repo.delete(product_id)
