@@ -2,7 +2,7 @@ from sqlalchemy.orm import Session
 
 from app.core.exceptions import NotFoundError
 from app.repositories.category import CategoryRepository
-from app.schemas.category import CategoryResponse, PaginatedCategoryResponse
+from app.schemas.category import CategoryCreate, CategoryResponse, PaginatedCategoryResponse
 
 
 class CategoryService:
@@ -12,7 +12,7 @@ class CategoryService:
     async def get_by_id(self, category_id: int) -> CategoryResponse:
         category_db = await self.category_repo.get_by_id(category_id)
         if not category_db:
-            raise NotFoundError("Product", category_id)
+            raise NotFoundError("Category", category_id)
 
         return CategoryResponse.model_validate(category_db)
 
@@ -31,3 +31,9 @@ class CategoryService:
             skip=skip,
             limit=limit,
         )
+
+    async def create_category(self, category_data: CategoryCreate) -> CategoryResponse:
+        category_dict = category_data.model_dump()
+        
+        category_db = await self.category_repo.create(category_dict)
+        return CategoryResponse.model_validate(category_db)

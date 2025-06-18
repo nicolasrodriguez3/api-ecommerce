@@ -1,9 +1,10 @@
 from typing import List
 from pydantic import BaseModel
-from datetime import datetime
+
+from app.schemas.base import BaseResponseModel
 
 
-class CategoryBase(BaseModel):
+class CategoryBase(BaseResponseModel):
     name: str
 
     model_config = {
@@ -18,8 +19,8 @@ class CategoryCreate(CategoryBase):
 
 class CategoryResponse(CategoryBase):
     id: int
-    created_at: datetime
-    updated_at: datetime
+    created_at: str
+    updated_at: str | None
 
 
 class PaginatedCategoryResponse(BaseModel):
