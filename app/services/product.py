@@ -2,13 +2,16 @@ from app.core.exceptions import NotFoundError
 from app.models.category import Category
 from app.repositories.product import ProductRepository
 from app.schemas.product import PaginatedProductResponse, ProductPublicResponse
-from sqlalchemy.orm import Session
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.services.category import CategoryService
 
 
 class ProductService:
-    def __init__(self, db: Session):
+    def __init__(self, db: AsyncSession):
         self.db = db
         self.product_repo = ProductRepository(db)
+        self.category_service = CategoryService(db)
 
     async def get_product_by_id(self, product_id):
         product_db = await self.product_repo.get_by_id(product_id)
@@ -42,11 +45,27 @@ class ProductService:
     async def create_product(self, product_data) -> ProductPublicResponse:
         product_dict = product_data.model_dump()
 
+        category_id: int | None = product_dict.get("category_id")
+        if category_id is None or category_id <= 0:
+            product_dict["category_id"] = 1
+        else:
+            category = await self._get_category(category_id)
+            if not category:
+                raise NotFoundError("Category", category_id)
+
         product_db = await self.product_repo.create(product_dict)
         return ProductPublicResponse.model_validate(product_db)
 
     async def update_product(self, product_id, product_data) -> ProductPublicResponse:
-        product_dict = product_data.model_dump()
+        product_dict: dict = product_data.model_dump()
+
+        category_id: int | None = product_dict.get("category_id")
+        if category_id is None or category_id <= 0:
+            product_dict["category_id"] = 1
+        else:
+            category = await self._get_category(category_id)
+            if not category:
+                raise NotFoundError("Category", category_id)
 
         product_db = await self.product_repo.update(product_id, product_dict)
         return ProductPublicResponse.model_validate(product_db)
@@ -54,6 +73,6 @@ class ProductService:
     async def delete_product(self, product_id):
         return await self.product_repo.delete(product_id)
 
-    async def _get_category(self, category_id: int) -> Category | None:
+    async def _get_category(self, category_id: int):
         """Obtener categoría por ID."""
-        return self.db.query(Category).filter_by(id=category_id).first()
+        return await self.category_service.get_by_id(category_id)

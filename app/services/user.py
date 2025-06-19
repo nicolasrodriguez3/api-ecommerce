@@ -114,7 +114,7 @@
 
 
 from typing import List
-from sqlalchemy.orm import Session
+from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.logger import setup_logger
 from app.core.security import get_password_hash
 from app.core.exceptions import NotFoundError, AlreadyExistsError
@@ -128,7 +128,7 @@ logger = setup_logger(__name__)
 class UserService:
     """Servicio de usuarios con lógica de negocio."""
     
-    def __init__(self, db: Session) -> None:
+    def __init__(self, db: AsyncSession) -> None:
         self.user_repo = UserRepository(db)
     
     async def create_user(self, user_data: UserCreate) -> UserResponse:

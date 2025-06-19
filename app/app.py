@@ -23,11 +23,12 @@ from app.api.v1.users import router as users_router
 from app.api.v1.auth import router as auth_router
 from app.api.v1.products import router as products_router
 from app.api.v1.categories import router as categories_router
+from app.core.init import init_db
 from app.core.logger import setup_logger
 
 
 # Crear tablas
-Base.metadata.create_all(bind=engine)
+# Base.metadata.create_all(bind=engine)
 
 settings = get_settings()
 logger = setup_logger(__name__, level=settings.log_level)
@@ -87,6 +88,7 @@ async def startup_event():
     logger.info(f"Starting {settings.app_name} v{settings.version}")
     logger.info(f"Environment: {settings.environment}")
     logger.info(f"Database URL: {settings.database_url}")
+    await init_db()
 
 
 @app.on_event("shutdown")

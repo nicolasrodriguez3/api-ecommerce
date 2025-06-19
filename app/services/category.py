@@ -1,12 +1,15 @@
-from sqlalchemy.orm import Session
-
 from app.core.exceptions import NotFoundError
 from app.repositories.category import CategoryRepository
-from app.schemas.category import CategoryCreate, CategoryResponse, PaginatedCategoryResponse
+from app.schemas.category import (
+    CategoryCreate,
+    CategoryResponse,
+    PaginatedCategoryResponse,
+)
+from sqlalchemy.ext.asyncio import AsyncSession
 
 
 class CategoryService:
-    def __init__(self, db: Session) -> None:
+    def __init__(self, db: AsyncSession) -> None:
         self.category_repo = CategoryRepository(db)
 
     async def get_by_id(self, category_id: int) -> CategoryResponse:
@@ -34,6 +37,6 @@ class CategoryService:
 
     async def create_category(self, category_data: CategoryCreate) -> CategoryResponse:
         category_dict = category_data.model_dump()
-        
+
         category_db = await self.category_repo.create(category_dict)
         return CategoryResponse.model_validate(category_db)

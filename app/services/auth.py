@@ -1,5 +1,5 @@
 from datetime import timedelta
-from sqlalchemy.orm import Session
+from sqlalchemy.ext.asyncio import AsyncSession
 from fastapi import HTTPException, status
 from app.models.user import User
 from app.repositories.user import UserRepository
@@ -12,7 +12,7 @@ from app.core.security import (
 
 
 class AuthService:
-    def __init__(self, db: Session):
+    def __init__(self, db: AsyncSession):
         self.user_repo = UserRepository(db)
 
     async def authenticate_user(self, email: str, password: str) -> User | None:

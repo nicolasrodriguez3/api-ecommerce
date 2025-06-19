@@ -1,8 +1,8 @@
 from typing import Annotated
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, status
 from fastapi.security import OAuth2PasswordRequestForm
-from sqlalchemy.orm import Session
-from app.core.database import get_db
+from sqlalchemy.ext.asyncio import AsyncSession
+from app.core.database import get_session
 from app.services.auth import AuthService
 from app.models.user import UserRole
 from app.schemas.user import NewUserCreate, UserCreate, UserResponse
@@ -16,12 +16,14 @@ router = APIRouter(prefix="/auth", tags=["autenticación"])
 @router.post(
     "/register", response_model=UserResponse, status_code=status.HTTP_201_CREATED
 )
-async def register(user_data: NewUserCreate, db: Annotated[Session, Depends(get_db)]):
+async def register(
+    user_data: NewUserCreate, db: Annotated[AsyncSession, Depends(get_session)]
+):
     """Registra un nuevo usuario"""
     new_user = UserCreate(
         email=user_data.email, password=user_data.password, roles=[UserRole.CUSTOMER]
     )
-    
+
     user_service = UserService(db)
     user = await user_service.create_user(new_user)
     return user
@@ -30,7 +32,7 @@ async def register(user_data: NewUserCreate, db: Annotated[Session, Depends(get_
 @router.post("/login", response_model=Token)
 async def login(
     form_data: Annotated[OAuth2PasswordRequestForm, Depends()],
-    db: Annotated[Session, Depends(get_db)],
+    db: Annotated[AsyncSession, Depends(get_session)],
 ):
     """Inicia sesión y obtiene token de acceso"""
     auth_service = AuthService(db)
@@ -51,6 +53,4 @@ async def refresh_token(current_user: CurrentActiveUser):
         data={"sub": current_user.id}, expires_delta=access_token_expires
     )
 
-    return Token(
-        access_token=access_token
-    )
+    return Token(access_token=access_token)

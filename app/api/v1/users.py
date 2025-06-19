@@ -7,7 +7,6 @@ from app.auth.dependencies import (
     get_current_user,
     require_admin,
 )
-from app.core.database import get_db
 from app.core.exceptions import NotFoundError, AlreadyExistsError, ValidationError
 from app.models.user import User, UserRole
 from app.schemas.user import UserCreate, UserUpdate, UserResponse

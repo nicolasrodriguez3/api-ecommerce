@@ -40,9 +40,10 @@
 
 from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
-from sqlalchemy.orm import Session
+from sqlalchemy.engine import Connection
+from sqlalchemy.ext.asyncio import AsyncSession
 from typing import Annotated, List, Optional
-from app.core.database import get_db
+from app.core.database import get_session
 from app.repositories.user import UserRepository
 from app.core.security import verify_token
 from app.models.user import User, UserRole
@@ -52,7 +53,7 @@ security = HTTPBearer()
 
 async def get_current_user(
     credentials: Annotated[HTTPAuthorizationCredentials, Depends(security)],
-    db: Annotated[Session, Depends(get_db)],
+    db: Annotated[AsyncSession, Depends(get_session)],
 ) -> User:
     """
     Dependencia que obtiene el usuario autenticado actual
@@ -113,7 +114,7 @@ async def get_current_user_optional(
     credentials: Annotated[
         Optional[HTTPAuthorizationCredentials], Depends(HTTPBearer(auto_error=False))
     ],
-    db: Annotated[Session, Depends(get_db)],
+    db: Annotated[AsyncSession, Depends(get_session)],
 ) -> Optional[User]:
     """
     Dependencia que obtiene el usuario autenticado opcionalmente
