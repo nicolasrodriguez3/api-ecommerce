@@ -28,7 +28,6 @@ class ProductUpdate(BaseModel):
     price: float | None = None
 
 
-
 class ProductImageResponse(BaseModel):
     id: int
     url: str
@@ -39,6 +38,16 @@ class ProductImageResponse(BaseModel):
     }
 
 
+class ProductImagesResponseList(BaseModel):
+    images: List[ProductImageResponse]
+
+    model_config = {
+        "from_attributes": True,
+    }
+
+class UpdateProductImage(BaseModel):
+    position: int
+
 class ProductPublicResponse(ProductBase):
     id: int
     description: str | None
@@ -48,7 +57,7 @@ class ProductPublicResponse(ProductBase):
     images: List[ProductImageResponse] = []
     created_at: datetime
     updated_at: datetime
-    
+
     model_config = {
         "from_attributes": True,
         "extra": "ignore",
@@ -60,4 +69,3 @@ class PaginatedProductResponse(BaseModel):
     total_elements: int
     skip: int
     limit: int
-

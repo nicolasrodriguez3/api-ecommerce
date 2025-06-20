@@ -1,7 +1,7 @@
 import logging
-from logging.handlers import TimedRotatingFileHandler
-import os
+from logging.handlers import RotatingFileHandler
 import sys
+from pathlib import Path
 
 
 def setup_logger(name: str, level: int | str = logging.INFO) -> logging.Logger:
@@ -20,45 +20,42 @@ def setup_logger(name: str, level: int | str = logging.INFO) -> logging.Logger:
     logger_level = logging.getLevelName(level) if isinstance(level, str) else level
     logger.setLevel(logger_level)
 
-    LOGS_PATH = "./logs"
-    if not os.path.exists(LOGS_PATH):
-        os.makedirs(LOGS_PATH)
+    LOGS_PATH = Path("./logs")
+    LOGS_PATH.mkdir(exist_ok=True)
 
-    # if not logger.handlers:
-    #     # Console handler
-    #     handler = logging.StreamHandler(sys.stdout)
-    #     handler.setLevel(level)
+    try:
+        handler = RotatingFileHandler(
+            filename=LOGS_PATH / "app.log",
+            maxBytes=10*1024*1024,  # 10MB
+            backupCount=7,
+            encoding="utf-8",
+        )
+        handler.setLevel(level)
 
-    #     # Create formatter and add it to the handler
-    #     formatter = logging.Formatter(
-    #         "[%(asctime)s] %(levelname)s in %(name)s: %(message)s"
-    #     )
-    #     handler.setFormatter(formatter)
-
-    #     # File handler
-    #     file_handler = logging.FileHandler(f"{LOGS_PATH}/{name}.log")
-    #     file_handler.setLevel(level)
-    #     file_handler.setFormatter(formatter)
-
-    #     # Add the handlers to the logger
-    #     logger.addHandler(handler)
-    #     logger.addHandler(file_handler)
-
-    # return logger
-    handler = TimedRotatingFileHandler(
-        filename=f"{LOGS_PATH}/app.log",
-        when="midnight",
-        interval=1,
-        backupCount=7,
-        encoding="utf-8",
-    )
-    handler.setLevel(level)
-
-    formatter = logging.Formatter(
-        "[%(asctime)s] %(levelname)s in %(name)s: %(message)s",
-        datefmt="%Y-%m-%d %H:%M:%S",
-    )
-    handler.setFormatter(formatter)
-    logger.addHandler(handler)
+        formatter = logging.Formatter(
+            "[%(asctime)s] %(levelname)s in %(name)s: %(message)s",
+            datefmt="%Y-%m-%d %H:%M:%S",
+        )
+        handler.setFormatter(formatter)
+        
+        # Console handler para desarrollo
+        console_handler = logging.StreamHandler(sys.stdout)
+        console_handler.setLevel(level)
+        console_handler.setFormatter(formatter)
+        
+        logger.addHandler(handler)
+        logger.addHandler(console_handler)
+        
+    except PermissionError as e:
+        # Si falla el archivo, usar solo console
+        print(f"Warning: No se pudo crear el archivo de log: {e}")
+        console_handler = logging.StreamHandler(sys.stdout)
+        console_handler.setLevel(level)
+        formatter = logging.Formatter(
+            "[%(asctime)s] %(levelname)s in %(name)s: %(message)s",
+            datefmt="%Y-%m-%d %H:%M:%S",
+        )
+        console_handler.setFormatter(formatter)
+        logger.addHandler(console_handler)
 
     return logger

@@ -15,7 +15,7 @@ class Settings(BaseSettings):
     log_level: str = "INFO"  # Logging level (DEBUG, INFO, WARNING, ERROR, CRITICAL)
     
     # Database settings
-    database_url: str = "sqlite:///./ecommerce.db"
+    database_url: str = "sqlite+aiosqlite:///./ecommerce.db"
     database_echo: bool = False  # Enable SQLAlchemy echo for debugging
     
     # Security settings
