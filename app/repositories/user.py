@@ -17,13 +17,13 @@ class UserRepository(BaseRepository[User]):
         self.role_repo = RoleRepository(db)
 
     async def get_multi(
-    self,
-    *,
-    skip: int = 0,
-    limit: int = 100,
-    filters: dict | None = None,
-    order_by: str | None = None
-) -> List[User]:
+        self,
+        *,
+        skip: int = 0,
+        limit: int = 100,
+        filters: dict | None = None,
+        order_by: str | None = None
+    ) -> List[User]:
         """Obtener múltiples usuarios con filtros y paginación."""
         stmt = select(User).options(selectinload(User.roles))
 
@@ -40,11 +40,7 @@ class UserRepository(BaseRepository[User]):
 
     async def get_by_id(self, obj_id: int) -> Optional[User]:
         """Obtener usuario por ID con roles cargados."""
-        stmt = (
-            select(User)
-            .options(selectinload(User.roles))  # Cargar roles de forma eager
-            .where(User.id == obj_id)
-        )
+        stmt = select(User).options(selectinload(User.roles)).where(User.id == obj_id)
         result = await self.db.execute(stmt)
         return result.scalar_one_or_none()
 
@@ -56,7 +52,13 @@ class UserRepository(BaseRepository[User]):
 
     async def get_active_users(self, *, skip: int = 0, limit: int = 100) -> List[User]:
         """Obtener usuarios activos."""
-        stmt = select(User).options(selectinload(User.roles)).where(User.is_active == True).offset(skip).limit(limit)
+        stmt = (
+            select(User)
+            .options(selectinload(User.roles))
+            .where(User.is_active == True)
+            .offset(skip)
+            .limit(limit)
+        )
         result = await self.db.execute(stmt)
         return list(result.scalars().all())
 
@@ -67,10 +69,17 @@ class UserRepository(BaseRepository[User]):
         )
 
         # Asignar roles
-        if user_data.roles is not None:
-            for role_name in user_data.roles:
-                role = await self.role_repo.get_or_create(role_name)
-                db_user.roles.append(role)
+        roles_to_assign = user_data.roles if user_data.roles else [UserRole.CUSTOMER]
+        for role_name in roles_to_assign:
+            # Validar que el rol sea válido
+            if not isinstance(role_name, UserRole):
+                try:
+                    role_name = UserRole(role_name)
+                except ValueError:
+                    raise ValueError(f"Invalid role: {role_name}")
+            
+            role = await self.role_repo.get_or_create(role_name)
+            db_user.roles.append(role)
 
         self.db.add(db_user)
         await self.db.commit()

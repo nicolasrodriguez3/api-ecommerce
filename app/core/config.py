@@ -9,13 +9,23 @@ class Settings(BaseSettings):
     port: int = 8000
     reload: bool = True
     
-    # Environment settings
-    environment: str = "development" # Options: development, production, testing
-    debug: bool = True  # Enable or disable debug mode
+    # Base de datos principal
+    database_url: str = "postgresql+asyncpg://postgres:password123@localhost:5432/ecommerce"
+    
+    # Base de datos para desarrollo
+    database_url_dev: str = "postgresql+asyncpg://postgres:password123@localhost:5432/ecommerce_dev"
+    
+    # Base de datos para testing
+    database_url_test: str = "postgresql+asyncpg://postgres:password123@localhost:5432/ecommerce_test"
+    
+    # URL síncrona para Alembic (quita el +asyncpg)
+    database_url_sync: str = "postgresql://postgres:password123@localhost:5432/ecommerce"
+    
+    # Variables de entorno
+    environment: str = "development"
+    debug: bool = True
     log_level: str = "INFO"  # Logging level (DEBUG, INFO, WARNING, ERROR, CRITICAL)
     
-    # Database settings
-    database_url: str = "sqlite+aiosqlite:///./ecommerce.db"
     database_echo: bool = False  # Enable SQLAlchemy echo for debugging
     
     # Security settings

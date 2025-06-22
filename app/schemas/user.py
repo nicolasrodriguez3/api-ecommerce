@@ -1,5 +1,5 @@
 from typing import List, Optional
-from pydantic import BaseModel, EmailStr
+from pydantic import BaseModel, EmailStr, Field
 from datetime import datetime
 
 from app.models.user import UserRole
@@ -24,27 +24,39 @@ class UserBase(BaseModel):
 class NewUserCreate(UserBase):
     password: str
 
+
 class UserCreate(UserBase):
-    roles: Optional[List[UserRole]] = [UserRole.CUSTOMER]  # Rol por defecto
+    roles: Optional[List[UserRole]] = Field(default_factory=lambda: [UserRole.CUSTOMER])
     password: str
+    is_active: bool = True
+
+    model_config = {
+        "use_enum_values": True,
+    }
 
 
 class UserInDB(UserBase):
     id: int
+    hashed_password: str
     created_at: datetime
     updated_at: datetime | None = None
-    roles: List[RoleResponse] = []
-
-    model_config = {"from_attributes": True}
-
+    roles: List[UserRole] = Field(default_factory=list)
+    
+    model_config = {
+        "from_attributes": True,
+        "use_enum_values": True,
+    }
 
 class UserResponse(UserBase):
     id: int
     is_active: bool
     created_at: datetime
-    roles: List[str] = []  # Lista de nombres de roles
+    roles: List[str] = Field(default_factory=list)
 
-    model_config = {"from_attributes": True}
+    model_config = {
+        "from_attributes": True,
+        "use_enum_values": True,
+    }
 
     @classmethod
     def from_user(cls, user):

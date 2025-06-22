@@ -1,8 +1,16 @@
-from fastapi import APIRouter, Depends, File, UploadFile
+from fastapi import APIRouter, Depends, File, Query, UploadFile
 
 from app.api.dependencies import get_product_service
 from app.auth.dependencies import get_current_user, require_admin
-from app.schemas.product import PaginatedProductResponse, ProductCreate, ProductImageResponse, ProductImagesResponseList, ProductPublicResponse, ProductUpdate, UpdateProductImage
+from app.schemas.product import (
+    PaginatedProductResponse,
+    ProductCreate,
+    ProductImageResponse,
+    ProductImagesResponseList,
+    ProductPublicResponse,
+    ProductUpdate,
+    UpdateProductImage,
+)
 from app.services.product import ProductService
 
 
@@ -15,12 +23,27 @@ router = APIRouter(prefix="/products", tags=["products"])
     description="Obtiene una lista paginada de productos",
 )
 async def get_products(
-    skip: int = 0,
-    limit: int = 100,
-    product_service: ProductService = Depends(get_product_service)
+    skip: int = Query(0, ge=0),
+    limit: int = Query(10, ge=1, le=100),
+    search: str | None = Query(None, description="Buscar por nombre"),
+    min_price: float | None = Query(None, ge=0),
+    max_price: float | None = Query(None, ge=0),
+    order_by: str = Query("id", description="Campo de ordenamiento"),
+    order_dir: str = Query("asc", pattern="^(asc|desc)$"),
+    category_id: int | None = Query(None, ge=1),
+    product_service: ProductService = Depends(get_product_service),
 ) -> PaginatedProductResponse:
     """Obtener lista de productos."""
-    return await product_service.get_products(skip=skip, limit=limit)
+    return await product_service.get_products(
+        skip=skip,
+        limit=limit,
+        search=search,
+        min_price=min_price,
+        max_price=max_price,
+        order_by=order_by,
+        order_dir=order_dir,
+        category_id=category_id
+    )
 
 
 @router.get(
@@ -29,8 +52,7 @@ async def get_products(
     description="Obtiene un producto por su ID",
 )
 async def get_product(
-    product_id: int,
-    product_service: ProductService = Depends(get_product_service)
+    product_id: int, product_service: ProductService = Depends(get_product_service)
 ) -> ProductPublicResponse:
     """Obtener producto por ID."""
     return await product_service.get_product_by_id(product_id)
@@ -40,11 +62,11 @@ async def get_product(
     "/",
     summary="Crear producto",
     description="Crea un nuevo producto",
-    dependencies=[Depends(get_current_user), Depends(require_admin)]
+    dependencies=[Depends(get_current_user), Depends(require_admin)],
 )
 async def create_product(
     product_data: ProductCreate,
-    product_service: ProductService = Depends(get_product_service)
+    product_service: ProductService = Depends(get_product_service),
 ) -> ProductPublicResponse:
     """Crear un nuevo producto."""
     return await product_service.create_product(product_data)
@@ -53,12 +75,12 @@ async def create_product(
 @router.put(
     "/{product_id}",
     summary="Actualizar un producto",
-    dependencies=[Depends(get_current_user), Depends(require_admin)]
+    dependencies=[Depends(get_current_user), Depends(require_admin)],
 )
 async def update_product(
     product_id: int,
     product_data: ProductUpdate,
-    product_service: ProductService = Depends(get_product_service)
+    product_service: ProductService = Depends(get_product_service),
 ) -> ProductPublicResponse:
     return await product_service.update_product(product_id, product_data)
 
@@ -68,15 +90,14 @@ async def update_product(
 async def upload_image(
     product_id: int,
     file: UploadFile = File(...),
-    product_service: ProductService = Depends(get_product_service)
+    product_service: ProductService = Depends(get_product_service),
 ) -> ProductImageResponse:
     return await product_service.upload_image(product_id, file)
 
 
 @router.get("/{product_id}/images")
 async def get_images(
-    product_id: int,
-    product_service: ProductService = Depends(get_product_service)
+    product_id: int, product_service: ProductService = Depends(get_product_service)
 ) -> ProductImagesResponseList:
     return await product_service.get_product_images(product_id)
 
@@ -85,7 +106,7 @@ async def get_images(
 async def delete_image(
     product_id: int,
     image_id: int,
-    product_service: ProductService = Depends(get_product_service)
+    product_service: ProductService = Depends(get_product_service),
 ) -> None:
     return await product_service.delete_image(product_id, image_id)
 
@@ -95,10 +116,8 @@ async def update_image_position(
     product_id: int,
     image_id: int,
     position_data: UpdateProductImage,
-    product_service: ProductService = Depends(get_product_service)
+    product_service: ProductService = Depends(get_product_service),
 ) -> ProductImageResponse:
     return await product_service.update_image_position(
-        image_id=image_id,
-        new_position=position_data.position,
-        product_id=product_id
+        image_id=image_id, new_position=position_data.position, product_id=product_id
     )

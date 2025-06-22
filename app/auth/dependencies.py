@@ -1,46 +1,5 @@
-# from typing import Annotated
-# from fastapi import Depends, HTTPException, Path, status
-
-# from app.core.security import get_current_user
-# from app.users.models import User
-# from app.users.roles import RoleEnum
-
-
-# def require_roles(*roles: RoleEnum):
-#     def role_checker(
-#         current_user: Annotated[User, Depends(get_current_user)],
-#     ):
-#         if current_user.role not in roles:
-#             raise HTTPException(
-#                 status_code=status.HTTP_403_FORBIDDEN,
-#                 detail="You do not have permission to perform this action",
-#             )
-#         return current_user
-
-#     return role_checker
-
-# def require_self_or_roles(*roles: RoleEnum, user_id_path_param: str = "user_id"):
-#     def dependency(
-#         target_user_id: int = Path(..., alias=user_id_path_param), # Use alias for flexibility
-#         current_user: User = Depends(get_current_user)
-#     ):
-#         if current_user.id == target_user_id:
-#             return current_user # User is accessing their own resource
-
-#         # If not self, check if user has one of the specified roles
-#         # This assumes User model has 'role' attribute which has a 'name' attribute (e.g. RoleEnum.admin.name)
-#         if hasattr(current_user, 'role') and current_user.role and current_user.role in roles:
-#             return current_user # User has a permitted role
-
-#         raise HTTPException(
-#             status_code=status.HTTP_403_FORBIDDEN,
-#             detail="You do not have permission to perform this action on this resource.",
-#         )
-#     return dependency
-
 from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
-from sqlalchemy.engine import Connection
 from sqlalchemy.ext.asyncio import AsyncSession
 from typing import Annotated, List, Optional
 from app.core.database import get_session
@@ -142,22 +101,51 @@ def require_roles(allowed_roles: List[UserRole]):
         pass
     """
 
-    def role_checker(current_user: User = Depends(get_current_active_user)) -> User:
+    async def role_checker(
+        current_user: User = Depends(get_current_active_user),
+    ) -> User:
         if not current_user.has_any_role(allowed_roles):
+            role_names = [role.value for role in allowed_roles]
+            user_roles = current_user.get_role_names()
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
-                detail=f"Access denied. Required roles: {[role.value for role in allowed_roles]}",
+                detail={
+                    "message": "Access denied. Insufficient permissions.",
+                    "required_roles": role_names,
+                    "user_roles": user_roles
+                }
             )
         return current_user
 
     return role_checker
 
-def require_admin(current_user: User = Depends(get_current_active_user)) -> User:
+
+async def require_admin(current_user: User = Depends(get_current_active_user)) -> User:
     """Dependencia específica para requerir rol de administrador"""
     if not current_user.has_role(UserRole.ADMIN):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="Access denied. Admin role required."
+            detail="Access denied. Admin role required.",
+        )
+    return current_user
+
+
+async def require_owner(current_user: User = Depends(get_current_active_user)) -> User:
+    """Dependencia específica para requerir rol de owner"""
+    if not current_user.has_role(UserRole.OWNER):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Access denied. Owner role required.",
+        )
+    return current_user
+
+
+async def require_seller(current_user: User = Depends(get_current_active_user)) -> User:
+    """Dependencia específica para requerir rol de seller"""
+    if not current_user.has_role(UserRole.SELLER):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Access denied. Seller role required.",
         )
     return current_user
 
@@ -166,17 +154,20 @@ def require_admin(current_user: User = Depends(get_current_active_user)) -> User
 CurrentUser = Annotated[User, Depends(get_current_user)]
 CurrentActiveUser = Annotated[User, Depends(get_current_active_user)]
 CurrentUserOptional = Annotated[Optional[User], Depends(get_current_user_optional)]
+CurrentAdmin = Annotated[User, Depends(require_admin)]
+CurrentOwner = Annotated[User, Depends(require_owner)]
+CurrentSeller = Annotated[User, Depends(require_seller)]
 
 
 # Funciones helper para verificar permisos
 class PermissionChecker:
     """Clase helper para verificar permisos complejos"""
-    
+
     @staticmethod
     def can_manage_users(user: User) -> bool:
         """Verificar si el usuario puede gestionar otros usuarios"""
         return user.has_any_role([UserRole.ADMIN, UserRole.OWNER])
-    
+
     @staticmethod
     def can_view_user(current_user: User, target_user_id: int) -> bool:
         """Verificar si el usuario puede ver información de otro usuario"""
@@ -185,7 +176,7 @@ class PermissionChecker:
             return True
         # Los usuarios pueden ver su propia información
         return bool(current_user.id == target_user_id)
-    
+
     @staticmethod
     def can_edit_user(current_user: User, target_user_id: int) -> bool:
         """Verificar si el usuario puede editar información de otro usuario"""
@@ -194,10 +185,11 @@ class PermissionChecker:
             return True
         # Los usuarios pueden editar su propia información
         return bool(current_user.id == target_user_id)
-    
+
     @staticmethod
     def can_delete_user(current_user: User, target_user_id: int) -> bool:
         """Verificar si el usuario puede eliminar otro usuario"""
         # Solo admins pueden eliminar usuarios y no pueden eliminarse a sí mismos
-        return bool(current_user.has_role(UserRole.ADMIN) and 
-                current_user.id != target_user_id)
+        return bool(
+            current_user.has_role(UserRole.ADMIN) and current_user.id != target_user_id
+        )

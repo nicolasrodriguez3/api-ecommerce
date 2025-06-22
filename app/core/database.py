@@ -1,6 +1,4 @@
-from typing import AsyncGenerator, Generator
-from sqlalchemy import event
-from sqlalchemy.engine import Engine
+from typing import AsyncGenerator
 from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker, AsyncSession
 from sqlalchemy.ext.asyncio.engine import AsyncEngine
 from sqlalchemy.orm import DeclarativeBase
@@ -19,8 +17,11 @@ def create_database_engine() -> AsyncEngine:
     return create_async_engine(
         settings.database_url,
         echo=settings.database_echo,
-        poolclass=NullPool,
         future=True,
+        pool_size=20,
+        max_overflow=0,
+        pool_pre_ping=True,
+        pool_recycle=300,
     )
 
 
@@ -43,6 +44,7 @@ async def get_session() -> AsyncGenerator[AsyncSession, None]:
     async with async_session() as session:
         try:
             yield session
+            await session.commit()
         except Exception as e:
             await session.rollback()
             logger.error(f"Error en la sesión de base de datos: {e}")

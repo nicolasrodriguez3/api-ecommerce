@@ -2,7 +2,6 @@ import enum
 from typing import List
 from sqlalchemy import Enum, ForeignKey, String, Table, Column
 from sqlalchemy.orm import Mapped, mapped_column, relationship
-from datetime import datetime
 
 from app.core.database import Base
 from app.models.base import BaseModel
@@ -66,3 +65,23 @@ class User(BaseModel):
     def get_role_names(self) -> list[str]:
         """Obtener lista de nombres de roles del usuario"""
         return [role.name for role in self.roles]
+
+    def is_admin(self) -> bool:
+        """Verificar si el usuario es administrador"""
+        return self.has_role(UserRole.ADMIN)
+
+    def is_owner(self) -> bool:
+        """Verificar si el usuario es propietario"""
+        return self.has_role(UserRole.OWNER)
+
+    def is_seller(self) -> bool:
+        """Verificar si el usuario es vendedor"""
+        return self.has_role(UserRole.SELLER)
+
+    def is_customer(self) -> bool:
+        """Verificar si el usuario es cliente"""
+        return self.has_role(UserRole.CUSTOMER)
+
+    def can_manage_users(self) -> bool:
+        """Verificar si puede gestionar otros usuarios"""
+        return self.has_any_role([UserRole.ADMIN, UserRole.OWNER])

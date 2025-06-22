@@ -69,3 +69,9 @@ class PaginatedProductResponse(BaseModel):
     total_elements: int
     skip: int
     limit: int
+    current_page: int
+    total_pages: int
+    
+    model_config = {
+        "from_attributes": True,
+    }

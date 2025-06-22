@@ -23,7 +23,7 @@ from app.api.v1.users import router as users_router
 from app.api.v1.auth import router as auth_router
 from app.api.v1.products import router as products_router
 from app.api.v1.categories import router as categories_router
-from app.core.init import init_db
+from app.core.init_db import init_db
 from app.core.logger import setup_logger
 
 
@@ -34,7 +34,28 @@ settings = get_settings()
 logger = setup_logger(__name__, level=settings.log_level)
 
 
-app = FastAPI(title="Ecommerce API")
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # Startup
+    try:
+        logger.info(f"🚀 Starting {settings.app_name} v{settings.version}")
+        logger.info(f"📦 Environment: {settings.environment}")
+        logger.info(f"🗄️ Database URL: {settings.database_url}")
+
+        await init_db()
+        logger.info("✅ Database initialization completed")
+
+    except Exception as e:
+        logger.error(f"❌ Failed to initialize application: {e}")
+        raise
+
+    yield
+
+    # Shutdown
+    logger.info("🛑 Shutting down application...")
+
+
+app = FastAPI(title=settings.app_name, version=settings.version, lifespan=lifespan)
 
 # Middleware CORS
 app.add_middleware(
@@ -85,10 +106,18 @@ async def sqlalchemy_exception_handler(
 @app.on_event("startup")
 async def startup_event():
     """Ejecutar al iniciar la aplicación."""
-    logger.info(f"Starting {settings.app_name} v{settings.version}")
-    logger.info(f"Environment: {settings.environment}")
-    logger.info(f"Database URL: {settings.database_url}")
-    await init_db()
+    try:
+        logger.info(f"🚀 Starting {settings.app_name} v{settings.version}")
+        logger.info(f"📦 Environment: {settings.environment}")
+        logger.info(f"🗄️ Database URL: {settings.database_url}")
+
+        # Inicializar base de datos
+        await init_db()
+        logger.info("✅ Database initialization completed")
+
+    except Exception as e:
+        logger.error(f"❌ Failed to initialize application: {e}")
+        raise
 
 
 @app.on_event("shutdown")
@@ -102,6 +131,7 @@ app.include_router(users_router)
 app.include_router(auth_router)
 app.include_router(products_router)
 app.include_router(categories_router)
+
 
 # Endpoints de salud
 @app.get("/health", tags=["health"])

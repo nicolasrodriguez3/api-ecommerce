@@ -118,6 +118,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.logger import setup_logger
 from app.core.security import get_password_hash
 from app.core.exceptions import NotFoundError, AlreadyExistsError
+from app.models.user import UserRole
 from app.repositories.user import UserRepository
 from app.schemas.user import UserCreate, UserUpdate, UserResponse
 
@@ -150,6 +151,12 @@ class UserService:
         if await self.user_repo.get_by_email(user_data.email):
             raise AlreadyExistsError("User", "email", user_data.email)
         
+        # Validar roles si se proporcionan
+        if user_data.roles:
+            for role_name in user_data.roles:
+                if role_name not in UserRole:
+                    raise ValueError(f"Invalid role: {role_name}")
+                
         # Crear usuario
         hashed_password = get_password_hash(user_data.password)
         del user_data.password
