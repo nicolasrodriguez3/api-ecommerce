@@ -3,16 +3,18 @@ import shutil
 import tempfile
 import uuid
 from fastapi import File, UploadFile
-from app.core.exceptions import AppException, NotFoundError
+from app.core.exceptions import AppException, ConflictError, NotFoundError
 from app.core.logger import setup_logger
 from app.models.category import Category
 from app.models.product import ProductImage
 from app.repositories.product import ProductRepository
+from app.schemas.category import CategoryResponse
 from app.schemas.product import (
     PaginatedProductResponse,
     ProductImageResponse,
     ProductImagesResponseList,
     ProductPublicResponse,
+    ProductUpdate,
 )
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.cloudinary import (
@@ -51,7 +53,7 @@ class ProductService:
         is_active: bool = True,
     ) -> PaginatedProductResponse:
         """Obtener lista de productos con filtros  opcionales, ordenamiento y paginación.
-    
+
         Args:
             skip: Número de registros a saltar (para paginación)
             limit: Máximo número de productos a devolver
@@ -62,31 +64,38 @@ class ProductService:
             order_dir: Dirección del orden ('asc' o 'desc', default: 'asc')
             category_id: ID de categoría opcional para filtrar
             is_active: Filtrar solo productos activos (default: True)
-            
+
         Returns:
             PaginatedProductResponse: Lista paginada de productos con metadata
-            
+
         Raises:
             AppException: Si el campo de ordenamiento no es válido
         """
-        
+
         # Validar parámetros de ordenamiento
-        ALLOWED_ORDER_FIELDS = {"id", "name", "price", "stock", "created_at", "updated_at"}
+        ALLOWED_ORDER_FIELDS = {
+            "id",
+            "name",
+            "price",
+            "stock",
+            "created_at",
+            "updated_at",
+        }
         if order_by not in ALLOWED_ORDER_FIELDS:
             logger.error(
                 f"Invalid order_by field: {order_by}. Allowed fields are: {', '.join(ALLOWED_ORDER_FIELDS)}"
             )
             raise AppException(
                 f"Invalid order_by field. Allowed fields are: {', '.join(ALLOWED_ORDER_FIELDS)}",
-                code="invalid_order_field"
+                code="invalid_order_field",
             )
-        
+
         # Validar dirección de ordenamiento
         if order_dir.lower() not in ["asc", "desc"]:
             logger.error(f"Invalid order_dir: {order_dir}. Must be 'asc' or 'desc'")
             raise AppException(
                 "Invalid order direction. Must be 'asc' or 'desc'",
-                code="invalid_order_direction"
+                code="invalid_order_direction",
             )
         # Crear filtros
         filters = {
@@ -96,58 +105,74 @@ class ProductService:
             "category_id": category_id,
             "is_active": is_active,
         }
-        
+
         # Obtener productos con filtros
         products_db = await self.product_repo.get_products_with_filters(
             skip=skip,
             limit=limit,
             filters=filters,
             order_by=order_by,
-            order_dir=order_dir.lower()
+            order_dir=order_dir.lower(),
         )
-        
+
         # Obtener total de productos con los mismos filtros
         total_products = await self.product_repo.count_products_with_filters(filters)
-        
+
         # Convertir a response objects
         products = [
             ProductPublicResponse.model_validate(product) for product in products_db
         ]
-        
+
         # Calcular metadata de paginación
         total_pages = total_products // limit + (1 if total_products % limit > 0 else 0)
         current_page = skip // limit + 1
-        
+
         logger.info(
             f"Retrieved {len(products)} products (page {current_page}/{total_pages}, "
             f"total: {total_products}) with filters: {filters}"
         )
-        
+
         return PaginatedProductResponse(
             data=products,
             total_elements=total_products,
             skip=skip,
             limit=limit,
             current_page=current_page,
-            total_pages=total_pages
+            total_pages=total_pages,
         )
 
     async def create_product(self, product_data) -> ProductPublicResponse:
         product_dict = product_data.model_dump()
 
+        # Validar nombre único
+        await self._validate_unique_name(product_dict["name"])
+
         category_id: int | None = product_dict.get("category_id")
         if category_id is None or category_id <= 0:
-            product_dict["category_id"] = 1
-        else:
-            category = await self._get_category(category_id)
-            if not category:
-                raise NotFoundError("Category", category_id)
+            category_id = 1
+            product_dict["category_id"] = category_id
+
+        category = await self._get_category(category_id)
+        if not category:
+            raise NotFoundError("Category", category_id)
 
         product_db = await self.product_repo.create(product_dict)
         return ProductPublicResponse.model_validate(product_db)
 
-    async def update_product(self, product_id, product_data) -> ProductPublicResponse:
-        product_dict: dict = product_data.model_dump()
+    async def update_product(
+        self, product_id, product_data: ProductUpdate
+    ) -> ProductPublicResponse:
+        existing_product = await self.product_repo.get_by_id(product_id)
+        if not existing_product:
+            raise NotFoundError("Product", product_id)
+
+        product_dict = product_data.model_dump(exclude_unset=True)
+
+        # Si se está actualizando el nombre, validar unicidad
+        if "name" in product_dict:
+            await self._validate_unique_name(
+                product_dict["name"], exclude_id=product_id
+            )
 
         category_id: int | None = product_dict.get("category_id")
         if category_id is None or category_id <= 0:
@@ -162,10 +187,6 @@ class ProductService:
 
     async def delete_product(self, product_id):
         return await self.product_repo.delete(product_id)
-
-    async def _get_category(self, category_id: int):
-        """Obtener categoría por ID."""
-        return await self.category_service.get_by_id(category_id)
 
     async def upload_image(
         self,
@@ -282,8 +303,12 @@ class ProductService:
         # Eliminar imagen de Cloudinary
         deleted: dict[str, str] = delete_image_from_url(image.url)
         if deleted.get("result") != "ok":
-            logger.error(f"Error deleting image from Cloudinary: {deleted.get('error')}")
-            raise AppException("Error deleting image from Cloudinary", code="cloudinary_error")
+            logger.error(
+                f"Error deleting image from Cloudinary: {deleted.get('error')}"
+            )
+            raise AppException(
+                "Error deleting image from Cloudinary", code="cloudinary_error"
+            )
 
         # Eliminar imagen de la base de datos
         await self.db.delete(image)
@@ -292,29 +317,28 @@ class ProductService:
             f"Image with ID {image_id} deleted successfully from product {product_id}"
         )
         return None
-    
 
     async def update_image_position(
-    self, image_id: int, new_position: int, product_id: int
-) -> ProductImageResponse:
+        self, image_id: int, new_position: int, product_id: int
+    ) -> ProductImageResponse:
         """
         Versión optimizada que usa una sola transacción para intercambiar posiciones.
         """
         # Obtener la imagen por ID
         image = await self.product_repo.get_image_by_id(image_id)
-        
+
         if not image:
             logger.error(f"Image with ID {image_id} not found")
             raise NotFoundError("Image", image_id)
-        
+
         # Validación opcional del product_id
         if product_id is not None and image.product_id != product_id:
             logger.error(f"Image {image_id} does not belong to product {product_id}")
             raise AppException(
                 f"Image {image_id} does not belong to product {product_id}",
-                code="image_product_mismatch"
+                code="image_product_mismatch",
             )
-        
+
         # Verificar si la imagen ya está en la posición solicitada
         if image.position == new_position:
             logger.warning(
@@ -322,38 +346,53 @@ class ProductService:
             )
             raise AppException(
                 "Image is already in the requested position",
-                code="image_already_in_position"
+                code="image_already_in_position",
             )
-        
+
         # Validar que la posición sea válida
         if new_position < 1:
             logger.error(f"Invalid position {new_position} for image {image_id}")
             raise AppException(
-                "Position must be greater than 0",
-                code="invalid_position"
+                "Position must be greater than 0", code="invalid_position"
             )
-        
+
         # Verificar si la nueva posición ya está ocupada
         existing_image = await self.product_repo.get_image_by_position(
             image.product_id, new_position
         )
-        
+
         if existing_image and existing_image.id != image_id:
             # Intercambiar posiciones en una sola transacción
             old_position = image.position
-            updated_image, updated_existing = await self.product_repo.swap_image_positions(
-                image_id, existing_image.id, new_position, old_position
+            updated_image, updated_existing = (
+                await self.product_repo.swap_image_positions(
+                    image_id, existing_image.id, new_position, old_position
+                )
             )
-            
+
             logger.info(
                 f"Images {image_id} and {existing_image.id} positions swapped: "
                 f"{old_position} <-> {new_position}"
             )
-            
+
             return ProductImageResponse.model_validate(updated_image)
         else:
             # Solo actualizar la posición de la imagen objetivo
-            updated_image = await self.product_repo.update_image_position(image_id, new_position)
-            
+            updated_image = await self.product_repo.update_image_position(
+                image_id, new_position
+            )
+
             logger.info(f"Image with ID {image_id} position updated to {new_position}")
             return ProductImageResponse.model_validate(updated_image)
+
+    async def _get_category(self, category_id: int) -> CategoryResponse:
+        """Obtener categoría por ID."""
+        return await self.category_service.get_by_id(category_id)
+
+    async def _validate_unique_name(self, name: str, exclude_id: int | None = None):
+        """Valida que el nombre del producto sea único."""
+        existing_product = await self.product_repo.get_by_name(name)
+        if existing_product and (
+            exclude_id is None or existing_product.id != exclude_id
+        ):
+            raise ConflictError(f"Un producto con el nombre '{name}' ya existe")

@@ -4,13 +4,18 @@ from contextlib import asynccontextmanager
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
-from sqlalchemy.exc import SQLAlchemyError
+from sqlalchemy.exc import SQLAlchemyError, IntegrityError
 
 from app.core.config import get_settings
 
 
 from app.core.database import Base, engine
-from app.core.exceptions import AppException
+from app.core.exception_handlers import register_exception_handlers
+from app.core.exceptions import (
+    EXCEPTION_STATUS_MAP,
+    AppException,
+    app_exception_handler,
+)
 
 # from app.products.router import router as products_router
 # from app.categories.router import router as categories_router
@@ -68,62 +73,7 @@ app.add_middleware(
 
 
 # Manejadores de excepciones
-@app.exception_handler(AppException)
-async def app_exception_handler(request: Request, exc: AppException) -> JSONResponse:
-    """Manejar excepciones de la aplicación."""
-    logger.error(f"Application error: {exc.message}")
-    return JSONResponse(
-        status_code=status.HTTP_400_BAD_REQUEST,
-        content={"detail": exc.message, "code": exc.code},
-    )
-
-
-@app.exception_handler(RequestValidationError)
-async def validation_exception_handler(
-    request: Request, exc: RequestValidationError
-) -> JSONResponse:
-    """Manejar errores de validación."""
-    logger.error(f"Validation error: {exc.errors()}")
-    return JSONResponse(
-        status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-        content={"detail": exc.errors()},
-    )
-
-
-@app.exception_handler(SQLAlchemyError)
-async def sqlalchemy_exception_handler(
-    request: Request, exc: SQLAlchemyError
-) -> JSONResponse:
-    """Manejar errores de SQLAlchemy."""
-    logger.error(f"Database error: {str(exc)}")
-    return JSONResponse(
-        status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-        content={"detail": "Database error occurred"},
-    )
-
-
-# Event handlers
-@app.on_event("startup")
-async def startup_event():
-    """Ejecutar al iniciar la aplicación."""
-    try:
-        logger.info(f"🚀 Starting {settings.app_name} v{settings.version}")
-        logger.info(f"📦 Environment: {settings.environment}")
-        logger.info(f"🗄️ Database URL: {settings.database_url}")
-
-        # Inicializar base de datos
-        await init_db()
-        logger.info("✅ Database initialization completed")
-
-    except Exception as e:
-        logger.error(f"❌ Failed to initialize application: {e}")
-        raise
-
-
-@app.on_event("shutdown")
-async def shutdown_event():
-    """Ejecutar al cerrar la aplicación."""
-    logger.info("Shutting down application")
+register_exception_handlers(app)
 
 
 # Routers

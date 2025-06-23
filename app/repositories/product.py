@@ -6,6 +6,8 @@ from app.repositories.base import BaseRepository
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload, joinedload
 
+from app.schemas.product import ProductCreate
+
 
 class ProductRepository(BaseRepository[Product]):
     """Repositorio de productos con consultas específicas."""
@@ -229,6 +231,15 @@ class ProductRepository(BaseRepository[Product]):
 
         result = await self.db.execute(query)
         return list(result.scalars().unique().all())
+    
+    async def create_product(self, product_data: ProductCreate,):
+        product = Product(**product_data.model_dump())
+        self.db.add(product)
+        await self.db.commit()
+        
+        # Recargar con las relaciones
+        await self.db.refresh(product)
+        
 
     async def create_image(self, product_id: int, image) -> ProductImage:
         """Crea una nueva imagen de un producto."""

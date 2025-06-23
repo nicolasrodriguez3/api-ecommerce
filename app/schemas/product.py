@@ -2,10 +2,11 @@ from datetime import datetime
 from typing import List
 from pydantic import BaseModel
 from app.categories.schemas import CategoryResponse
+from app.schemas.base import BaseResponseModel
 
 
 # Products
-class ProductBase(BaseModel):
+class ProductBase(BaseResponseModel):
     name: str
     price: float
 
@@ -20,7 +21,7 @@ class ProductCreate(ProductBase):
     category_id: int = 1  # Default category ID
 
 
-class ProductUpdate(BaseModel):
+class ProductUpdate(BaseResponseModel):
     name: str | None = None
     description: str | None = None
     category_id: int | None = None
@@ -28,7 +29,7 @@ class ProductUpdate(BaseModel):
     price: float | None = None
 
 
-class ProductImageResponse(BaseModel):
+class ProductImageResponse(BaseResponseModel):
     id: int
     url: str
     position: int
@@ -38,14 +39,14 @@ class ProductImageResponse(BaseModel):
     }
 
 
-class ProductImagesResponseList(BaseModel):
+class ProductImagesResponseList(BaseResponseModel):
     images: List[ProductImageResponse]
 
     model_config = {
         "from_attributes": True,
     }
 
-class UpdateProductImage(BaseModel):
+class UpdateProductImage(BaseResponseModel):
     position: int
 
 class ProductPublicResponse(ProductBase):
@@ -55,8 +56,8 @@ class ProductPublicResponse(ProductBase):
     # category: CategoryResponse
     category_id: int
     images: List[ProductImageResponse] = []
-    created_at: datetime
-    updated_at: datetime
+    created_at: str
+    updated_at: str | None
 
     model_config = {
         "from_attributes": True,
@@ -64,7 +65,7 @@ class ProductPublicResponse(ProductBase):
     }
 
 
-class PaginatedProductResponse(BaseModel):
+class PaginatedProductResponse(BaseResponseModel):
     data: List[ProductPublicResponse]
     total_elements: int
     skip: int

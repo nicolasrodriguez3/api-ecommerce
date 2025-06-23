@@ -8,7 +8,7 @@ from app.models.category import Category
 class Product(BaseModel):
     __tablename__ = "products"
 
-    name: Mapped[str] = mapped_column(String, nullable=False)
+    name: Mapped[str] = mapped_column(String, nullable=False, unique=True)
     description: Mapped[str] = mapped_column(String, nullable=True)
     price: Mapped[float] = mapped_column(Float, nullable=False)
     stock: Mapped[int] = mapped_column(default=0)
@@ -18,9 +18,14 @@ class Product(BaseModel):
 
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
 
-    category: Mapped[Category] = relationship("Category", back_populates="products")
+    category: Mapped[Category] = relationship(
+        "Category", back_populates="products", lazy="selectin"
+    )
     images: Mapped[List["ProductImage"]] = relationship(
-        "ProductImage", back_populates="product", cascade="all, delete-orphan"
+        "ProductImage",
+        back_populates="product",
+        cascade="all, delete-orphan",
+        lazy="selectin",
     )
 
     # order_items: Mapped[list["OrderItem"]] = relationship(
