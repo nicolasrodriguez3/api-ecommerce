@@ -135,7 +135,7 @@ async def update_user_roles(
     roles: List[UserRole],
     current_user: User = Depends(require_admin),  # Solo admins pueden modificar roles
     user_service: UserService = Depends(get_user_service),
-):
+) -> UserResponse:
     """
     Actualizar roles de un usuario específico. Solo administradores.
     """
@@ -156,7 +156,7 @@ async def get_users_by_role(
     role: UserRole,
     current_user: User = Depends(require_admin),
     user_service: UserService = Depends(get_user_service),
-):
+) -> List[UserResponse]:
     """
     Obtener usuarios por rol específico. Requiere rol de dueño o administrador.
     """

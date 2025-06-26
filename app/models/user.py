@@ -51,7 +51,8 @@ class User(BaseModel):
     # orders: Mapped[list["Order"]] = relationship("Order", back_populates="user")
 
     roles: Mapped[List["Role"]] = relationship(
-        "Role", secondary=user_roles, back_populates="users"
+        "Role", secondary=user_roles, back_populates="users",
+        lazy="selectin",
     )
 
     def has_role(self, role: UserRole) -> bool:

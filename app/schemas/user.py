@@ -3,9 +3,10 @@ from pydantic import BaseModel, EmailStr, Field
 from datetime import datetime
 
 from app.models.user import UserRole
+from app.schemas.base import BaseResponseModel
 
 
-class RoleBase(BaseModel):
+class RoleBase(BaseResponseModel):
     name: UserRole
     description: str | None = None
 
@@ -17,7 +18,7 @@ class RoleResponse(RoleBase):
     model_config = {"from_attributes": True}
 
 
-class UserBase(BaseModel):
+class UserBase(BaseResponseModel):
     email: EmailStr
 
 
@@ -38,8 +39,8 @@ class UserCreate(UserBase):
 class UserInDB(UserBase):
     id: int
     hashed_password: str
-    created_at: datetime
-    updated_at: datetime | None = None
+    created_at: str
+    updated_at: str | None = None
     roles: List[UserRole] = Field(default_factory=list)
     
     model_config = {
@@ -50,7 +51,7 @@ class UserInDB(UserBase):
 class UserResponse(UserBase):
     id: int
     is_active: bool
-    created_at: datetime
+    created_at: str
     roles: List[str] = Field(default_factory=list)
 
     model_config = {
