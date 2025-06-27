@@ -17,8 +17,10 @@ class Product(BaseModel):
     )
 
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
+    is_deleted: Mapped[bool] = mapped_column(Boolean, default=False)
+    
 
-    category: Mapped[Category] = relationship(
+    category: Mapped["Category"] = relationship(
         "Category", back_populates="products", lazy="selectin"
     )
     images: Mapped[List["ProductImage"]] = relationship(

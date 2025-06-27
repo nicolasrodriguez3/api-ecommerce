@@ -1,7 +1,7 @@
 from abc import ABC, abstractmethod
 from typing import Generic, TypeVar, Type, Optional, List, Any, Dict
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, update, delete, func
+from sqlalchemy import and_, select, update, delete, func
 from app.models.base import BaseModel
 
 ModelType = TypeVar("ModelType", bound=BaseModel)
@@ -22,9 +22,12 @@ class BaseRepository(Generic[ModelType], ABC):
         await self.db.refresh(db_obj)
         return db_obj
 
-    async def get_by_id(self, obj_id: int) -> Optional[ModelType]:
-        """Obtener registro por ID."""
-        stmt = select(self.model).where(self.model.id == obj_id)
+    async def get_by_id(self, entity_id: int) -> ModelType | None:
+        """Obtener entidad por ID (excluyendo soft deleted)."""
+        stmt = select(self.model).where(self.model.id == entity_id)
+        # Excluir soft deleted solo si el modelo tiene el atributo 'is_deleted'
+        if hasattr(self.model, "is_deleted"):
+            stmt = stmt.where(getattr(self.model, "is_deleted") == False)
         result = await self.db.execute(stmt)
         return result.scalar_one_or_none()
 

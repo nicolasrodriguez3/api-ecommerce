@@ -4,11 +4,9 @@ from sqlalchemy import engine_from_config, pool
 
 from alembic import context
 
-import os
 import sys
-
-# Agregá tu app al path
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
+import os
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from app.core.config import get_settings
 from app.core.database import Base

@@ -1,7 +1,3 @@
-from datetime import datetime
-from typing import List
-from pydantic import BaseModel
-from app.categories.schemas import CategoryResponse
 from app.schemas.base import BaseResponseModel
 
 
@@ -40,7 +36,7 @@ class ProductImageResponse(BaseResponseModel):
 
 
 class ProductImagesResponseList(BaseResponseModel):
-    images: List[ProductImageResponse]
+    images: list[ProductImageResponse]
 
     model_config = {
         "from_attributes": True,
@@ -55,7 +51,7 @@ class ProductPublicResponse(ProductBase):
     stock: int
     # category: CategoryResponse
     category_id: int
-    images: List[ProductImageResponse] = []
+    images: list[ProductImageResponse] = []
     created_at: str
     updated_at: str | None
 
@@ -66,7 +62,7 @@ class ProductPublicResponse(ProductBase):
 
 
 class PaginatedProductResponse(BaseResponseModel):
-    data: List[ProductPublicResponse]
+    data: list[ProductPublicResponse]
     total_elements: int
     skip: int
     limit: int

@@ -8,7 +8,7 @@ from app.core.logger import setup_logger
 from app.models.category import Category
 from app.models.product import ProductImage
 from app.repositories.product import ProductRepository
-from app.schemas.category import CategoryResponse
+from app.schemas.category import CategoryPublicResponse
 from app.schemas.product import (
     PaginatedProductResponse,
     ProductImageResponse,
@@ -385,9 +385,9 @@ class ProductService:
             logger.info(f"Image with ID {image_id} position updated to {new_position}")
             return ProductImageResponse.model_validate(updated_image)
 
-    async def _get_category(self, category_id: int) -> CategoryResponse:
+    async def _get_category(self, category_id: int) -> CategoryPublicResponse:
         """Obtener categoría por ID."""
-        return await self.category_service.get_by_id(category_id)
+        return await self.category_service.get_category_by_id(category_id)
 
     async def _validate_unique_name(self, name: str, exclude_id: int | None = None):
         """Valida que el nombre del producto sea único."""
