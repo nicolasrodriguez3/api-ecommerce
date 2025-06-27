@@ -36,6 +36,9 @@ async def get_categories(
     include_product_count: bool = Query(
         False, description="Incluir conteo de productos por categoría"
     ),
+    include_deleted: bool = Query(
+        False, description="Incluir categorias eliminadas"
+    ),
     category_service: CategoryService = Depends(get_category_service),
 ) -> PaginatedCategoryResponse:
     """Obtener lista de categorías con filtros opcionales."""
@@ -46,6 +49,7 @@ async def get_categories(
         order_by=order_by,
         order_dir=order_dir,
         include_product_count=include_product_count,
+        include_deleted=include_deleted,
     )
 
 @router.get(

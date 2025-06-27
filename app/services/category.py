@@ -33,6 +33,7 @@ class CategoryService:
         order_by: str = "id",
         order_dir: str = "asc",
         include_product_count: bool = False,
+        include_deleted: bool = False,
     ) -> PaginatedCategoryResponse:
         """Obtener lista de categorías con filtros opcionales, ordenamiento y paginación.
 
@@ -88,10 +89,11 @@ class CategoryService:
             order_by=order_by,
             order_dir=order_dir.lower(),
             include_product_count=include_product_count,
+            include_deleted=include_deleted,
         )
 
         # Obtener total de categorías con los mismos filtros
-        total_categories = await self.category_repo.count_categories_with_filters(filters)
+        total_categories = await self.category_repo.count_categories_with_filters(filters, include_deleted=include_deleted,)
 
         # Convertir a response objects
         categories = [
@@ -169,7 +171,7 @@ class CategoryService:
             )
 
         # Realizar soft delete
-        await self.category_repo.soft_delete(category_id)
+        await self.category_repo.category_soft_delete(category_id)
         
         logger.info(f"Soft deleted category with ID: {category_id}")
         return {"message": "Category deleted successfully", "category_id": category_id}

@@ -30,13 +30,16 @@ class CategoryRepository(BaseRepository[Category]):
         order_by: str = "id",
         order_dir: str = "asc",
         include_product_count: bool = False,
+        include_deleted: bool = False,
     ) -> List[Category]:
         """Obtener categorías con filtros aplicados."""
         if filters is None:
             filters = {}
 
         # Construir query base
-        stmt = select(Category).where(Category.is_deleted == False)
+        stmt = select(Category)
+        if not include_deleted:
+            stmt = stmt.where(Category.is_deleted == False)
 
         # Aplicar filtros
         if filters.get("search"):
@@ -60,13 +63,19 @@ class CategoryRepository(BaseRepository[Category]):
         result = await self.db.execute(stmt)
         return list(result.scalars().all())
 
-    async def count_categories_with_filters(self, filters: Dict[str, Any] | None = None) -> int:
+    async def count_categories_with_filters(
+        self,
+        filters: Dict[str, Any] | None = None,
+        include_deleted=False,
+    ) -> int:
         """Contar categorías con filtros aplicados."""
         if filters is None:
             filters = {}
 
         # Construir query de conteo
-        stmt = select(func.count(Category.id)).where(Category.is_deleted == False)
+        stmt = select(func.count(Category.id))
+        if not include_deleted:
+            stmt = stmt.where(Category.is_deleted == False)
 
         # Aplicar filtros
         if filters.get("search"):
@@ -124,7 +133,7 @@ class CategoryRepository(BaseRepository[Category]):
         """Contar productos activos en una categoría (para validación antes de eliminar)."""
         return await self.count_products_in_category(category_id, is_active=True)
 
-    async def soft_delete(self, category_id: int) -> None:
+    async def category_soft_delete(self, category_id: int) -> bool:
         """Realizar soft delete de una categoría."""
         stmt = (
             sql_update(Category)
@@ -133,12 +142,12 @@ class CategoryRepository(BaseRepository[Category]):
         )
         await self.db.execute(stmt)
         await self.db.commit()
+        return True
 
     async def get_by_id(self, obj_id: int) -> Category | None:
         """Override para incluir filtro de soft delete."""
-        stmt = select(Category).where(
-            and_(Category.id == obj_id, Category.is_deleted == False)
-        )
+        stmt = select(Category).where(Category.id == obj_id)
+        
         result = await self.db.execute(stmt)
         return result.scalar_one_or_none()
 
@@ -161,15 +170,15 @@ class CategoryRepository(BaseRepository[Category]):
                 Category.name,
                 Category.created_at,
                 Category.updated_at,
-                func.count(Product.id).label("product_count")
+                func.count(Product.id).label("product_count"),
             )
             .outerjoin(
-                Product, 
+                Product,
                 and_(
                     Product.category_id == Category.id,
                     Product.is_deleted == False,
-                    Product.is_active == True
-                )
+                    Product.is_active == True,
+                ),
             )
             .where(Category.is_deleted == False)
             .group_by(Category.id)
@@ -185,7 +194,7 @@ class CategoryRepository(BaseRepository[Category]):
             order_column = func.count(Product.id)
         else:
             order_column = getattr(Category, order_by)
-        
+
         if order_dir == "desc":
             stmt = stmt.order_by(desc(order_column))
         else:

@@ -35,9 +35,10 @@ class CategoryPublicResponse(CategoryBase):
     id: int
     created_at: str
     updated_at: str | None = None
-    product_count: int | None = Field(
-        None, description="Número de productos en la categoría"
+    product_count: int = Field(
+        0, description="Número de productos en la categoría"
     )
+    is_deleted: bool = False
 
     model_config = {
         "from_attributes": True,

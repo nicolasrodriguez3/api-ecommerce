@@ -22,9 +22,9 @@ class BaseRepository(Generic[ModelType], ABC):
         await self.db.refresh(db_obj)
         return db_obj
 
-    async def get_by_id(self, entity_id: int) -> ModelType | None:
+    async def get_by_id(self, obj_id: int) -> ModelType | None:
         """Obtener entidad por ID (excluyendo soft deleted)."""
-        stmt = select(self.model).where(self.model.id == entity_id)
+        stmt = select(self.model).where(self.model.id == obj_id)
         # Excluir soft deleted solo si el modelo tiene el atributo 'is_deleted'
         if hasattr(self.model, "is_deleted"):
             stmt = stmt.where(getattr(self.model, "is_deleted") == False)
@@ -73,22 +73,48 @@ class BaseRepository(Generic[ModelType], ABC):
         return await self.get_by_id(obj_id)
 
     async def delete(self, obj_id: int) -> bool:
-        """Eliminar registro."""
+        """Eliminar entidad (hard delete)."""
         stmt = delete(self.model).where(self.model.id == obj_id)
         result = await self.db.execute(stmt)
         await self.db.commit()
         return result.rowcount > 0
 
-    async def count(self) -> int:
-        """Contar total de registros."""
+    async def soft_delete(self, obj_id: int) -> bool:
+        """Eliminar entidad (soft delete)."""
+        if not hasattr(self.model, "is_deleted"):
+            # Si el modelo no soporta soft delete, retornar False
+            return False
+
+        stmt = (
+            update(self.model)
+            .where(
+                and_(
+                    self.model.id == obj_id, getattr(self.model, "is_deleted") == False
+                )
+            )
+            .values(is_deleted=True, updated_at=func.now())
+        )
+        result = await self.db.execute(stmt)
+        await self.db.commit()
+        return result.rowcount > 0
+
+    async def count(self, include_deleted: bool = False) -> int:
+        """Contar entidades."""
         stmt = select(func.count(self.model.id))
+
+        if not include_deleted and hasattr(self.model, "is_deleted"):
+            stmt = stmt.where(getattr(self.model, "is_deleted") == False)
+
         result = await self.db.execute(stmt)
         result = result.scalar()
         return result if result is not None else 0
 
-    async def exists(self, obj_id: int) -> bool:
-        """Verificar si existe un registro."""
-        stmt = select(func.count(self.model.id)).where(self.model.id == obj_id)
+    async def exists(self, entity_id: int) -> bool:
+        """Verificar si existe una entidad."""
+        stmt = select(self.model.id).where(self.model.id == entity_id)
+        
+        if hasattr(self.model, "is_deleted"):
+            stmt = stmt.where(getattr(self.model, "is_deleted") == False)
+            
         result = await self.db.execute(stmt)
-        result = result.scalar()
-        return result > 0 if result is not None else False
+        return result.scalar_one_or_none() is not None

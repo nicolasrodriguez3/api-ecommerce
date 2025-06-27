@@ -175,12 +175,10 @@ class ProductService:
             )
 
         category_id: int | None = product_dict.get("category_id")
-        if category_id is None or category_id <= 0:
-            product_dict["category_id"] = 1
-        else:
-            category = await self._get_category(category_id)
-            if not category:
-                raise NotFoundError("Category", category_id)
+        
+        category = await self._get_category(category_id)
+        if not category:
+            raise NotFoundError("Category", category_id)
 
         product_db = await self.product_repo.update(product_id, product_dict)
         return ProductPublicResponse.model_validate(product_db)
