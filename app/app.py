@@ -23,11 +23,11 @@ from app.core.exceptions import (
 # from app.users.router import router as users_router
 # from app.roles.router import router as roles_router
 # from app.auth.router import router as auth_router
-# from app.orders.router import router as orders_router
 from app.api.v1.users import router as users_router
 from app.api.v1.auth import router as auth_router
 from app.api.v1.products import router as products_router
 from app.api.v1.categories import router as categories_router
+from app.api.v1.orders import router as orders_router
 from app.core.init_db import init_db
 from app.core.logger import setup_logger
 
@@ -81,6 +81,7 @@ app.include_router(users_router)
 app.include_router(auth_router)
 app.include_router(products_router)
 app.include_router(categories_router)
+app.include_router(orders_router)
 
 
 # Endpoints de salud

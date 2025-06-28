@@ -48,7 +48,7 @@ class User(BaseModel):
     #     "Customer", uselist=False, back_populates="user"
     # )
 
-    # orders: Mapped[list["Order"]] = relationship("Order", back_populates="user")
+    orders: Mapped[list["Order"]] = relationship("Order", back_populates="user") # type: ignore
 
     roles: Mapped[List["Role"]] = relationship(
         "Role", secondary=user_roles, back_populates="users",

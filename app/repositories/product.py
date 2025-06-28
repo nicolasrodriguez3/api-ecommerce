@@ -30,14 +30,33 @@ class ProductRepository(BaseRepository[Product]):
         return result.scalar_one_or_none()
 
     async def get_active_products(
-        self, *, skip: int = 0, limit: int = 100
-    ) -> list[Product]:
+        self, *, filters
+    ) -> tuple[list[Product], int]:
         """Obtener productos activos."""
         stmt = (
-            select(Product).where(Product.is_active == True).offset(skip).limit(limit)
+            select(Product).where(Product.is_active == True)
         )
+        
+        # Contar total antes de paginación
+        count_stmt = select(func.count()).select_from(stmt.subquery())
+        count_result = await self.db.execute(count_stmt)
+        total = count_result.scalar()
+        total = total if total is not None else 0
+
+        # Aplicar ordenamiento
+        if filters.sort_order.lower() == "desc":
+            stmt = stmt.order_by(desc(getattr(Product, filters.sort_by)))
+        else:
+            stmt = stmt.order_by(asc(getattr(Product, filters.sort_by)))
+
+        # Aplicar paginación
+        offset = (filters.page - 1) * filters.page_size
+        stmt = stmt.offset(offset).limit(filters.page_size)
+
         result = await self.db.execute(stmt)
-        return list(result.scalars().all())
+        products = result.scalars().all()
+
+        return list(products), total
 
     async def get_multi(
         self,
