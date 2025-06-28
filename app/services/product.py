@@ -170,21 +170,22 @@ class ProductService:
 
         # Si se está actualizando el nombre, validar unicidad
         if "name" in product_dict:
+            product_dict["name"] = product_dict["name"].strip()
             await self._validate_unique_name(
                 product_dict["name"], exclude_id=product_id
             )
 
-        category_id: int | None = product_dict.get("category_id")
-        
-        category = await self._get_category(category_id)
-        if not category:
-            raise NotFoundError("Category", category_id)
+        if "category_id" in product_dict:
+            category_id: int = product_dict["category_id"]
+            category = await self._get_category(category_id)
+            if not category:
+                raise NotFoundError("Category", category_id)
 
         product_db = await self.product_repo.update(product_id, product_dict)
         return ProductPublicResponse.model_validate(product_db)
 
     async def delete_product(self, product_id):
-        return await self.product_repo.delete(product_id)
+        return await self.product_repo.soft_delete(product_id)
 
     async def upload_image(
         self,

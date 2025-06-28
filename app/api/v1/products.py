@@ -84,6 +84,19 @@ async def update_product(
 ) -> ProductPublicResponse:
     return await product_service.update_product(product_id, product_data)
 
+@router.delete(
+    "/{product_id}",
+    summary="Eliminar producto",
+    description="Elimina un producto del sistema (soft delete).",
+    status_code=204
+)
+async def delete_product(
+    product_id: int,
+    product_service: ProductService = Depends(get_product_service),
+    current_user = Depends(require_admin),  # Solo administradores pueden eliminar productos
+):
+    """Eliminar producto (soft delete)."""
+    return await product_service.delete_product(product_id)
 
 # Images
 @router.post("/{product_id}/images", status_code=201)
