@@ -1,7 +1,9 @@
+from typing import Optional
 from fastapi import APIRouter, Depends, File, Query, UploadFile
 
-from app.api.dependencies import get_product_service
+from app.api.dependencies import get_product_service2
 from app.auth.dependencies import get_current_user, require_admin
+from app.schemas.common import PaginatedResponse, PaginationParams, ProductFilters, ProductQuery, SortDirection
 from app.schemas.product import (
     PaginatedProductResponse,
     ProductCreate,
@@ -14,36 +16,78 @@ from app.schemas.product import (
 from app.services.product import ProductService
 
 
-router = APIRouter(prefix="/products", tags=["products"])
+router = APIRouter(prefix="/products2", tags=["products2"])
 
-
-@router.get(
-    "/",
-    summary="Listar productos",
-    description="Obtiene una lista paginada de productos",
-)
+@router.get("/products", response_model=PaginatedResponse[ProductResponse])
 async def get_products(
-    limit: int = Query(10, ge=1, le=100),
-    cursor: str | None = Query(None),
-    search: str | None = Query(None, description="Buscar por nombre"),
-    min_price: float | None = Query(None, ge=0),
-    max_price: float | None = Query(None, ge=0),
+    # Parámetros de paginación
+    cursor: Optional[str] = Query(None, description="Cursor para paginación"),
+    limit: int = Query(20, ge=1, le=100, description="Límite de resultados"),
+    direction: str = Query("next", regex="^(next|prev)$"),
+    
+    # Parámetros de filtrado
+    search: Optional[str] = Query(None, description="Búsqueda por nombre/descripción"),
+    is_active: Optional[bool] = Query(None, description="Filtrar por estado activo"),
+    category_id: Optional[int] = Query(None, description="Filtrar por categoría"),
+    min_price: Optional[float] = Query(None, ge=0, description="Precio mínimo"),
+    max_price: Optional[float] = Query(None, ge=0, description="Precio máximo"),
+    
+    # Parámetros de ordenamiento
     order_by: str = Query("id", description="Campo de ordenamiento"),
-    order_dir: str = Query("asc", pattern="^(asc|desc)$"),
-    category_id: int | None = Query(None, ge=1),
-    product_service: ProductService = Depends(get_product_service),
-) -> PaginatedProductResponse:
-    """Obtener lista de productos."""
-    return await product_service.get_products(
-        limit=limit,
+    order_direction: SortDirection = Query(SortDirection.ASC, description="Dirección"),
+    
+    # Parámetros de carga
+    include_images: bool = Query(True, description="Incluir imágenes"),
+    include_category: bool = Query(True, description="Incluir categoría"),
+    include_total: bool = Query(False, description="Incluir conteo total"),
+    
+    # Service
+    product_service = Depends(get_product_service2)
+):
+    """
+    Obtener productos con paginación cursor-based optimizada
+    
+    ✅ Ventajas sobre el endpoint anterior:
+    - Paginación O(1) en lugar de O(n)
+    - Carga de relaciones configurable
+    - Conteo total opcional (para mejor rendimiento)
+    - Filtros tipados y validados
+    - Cursor estable para tiempo real
+    """
+    
+    # Crear parámetros de paginación
+    pagination = PaginationParams(
         cursor=cursor,
-        search=search,
-        min_price=min_price,
-        max_price=max_price,
-        order_by=order_by,
-        order_dir=order_dir,
-        category_id=category_id
+        limit=limit,
+        direction=direction
     )
+    
+    # Crear filtros
+    filters = ProductFilters(
+        search=search,
+        is_active=is_active,
+        category_id=category_id,
+        min_price=min_price,
+        max_price=max_price
+    )
+    
+    # Crear query params
+    query_params = ProductQuery(
+        filters=filters,
+        order_by=order_by,
+        order_direction=order_direction,
+        include_images=include_images,
+        include_category=include_category
+    )
+    
+    # Ejecutar búsqueda
+    result = await repo.search_products(query_params, pagination)
+    
+    # Si se solicita total, agregarlo
+    if include_total and isinstance(result, PaginatedResponse):
+        result.total_count = await repo.get_approximate_count(filters)
+    
+    return result
 
 
 @router.get(

@@ -5,10 +5,10 @@ import uuid
 from fastapi import File, UploadFile
 from app.core.exceptions import AppException, ConflictError, NotFoundError
 from app.core.logger import setup_logger
-from app.models.category import Category
 from app.models.product import ProductImage
-from app.repositories.product import ProductRepository
+from app.repositories.product2 import ProductRepository
 from app.schemas.category import CategoryPublicResponse
+from app.schemas.common import PaginatedResponse
 from app.schemas.product import (
     PaginatedProductResponse,
     ProductImageResponse,
@@ -21,7 +21,6 @@ from app.core.cloudinary import (
     delete_image_from_url,
     upload_image as upload_image_service,
 )
-from app.utils.pagination import PaginationHelper
 
 from app.services.category import CategoryService
 
@@ -43,105 +42,19 @@ class ProductService:
 
     async def get_products(
         self,
-        cursor: str | None,
-        limit: int = 10,
-        search: str | None = None,
-        min_price: float | None = None,
-        max_price: float | None = None,
-        order_by: str = "id",
-        order_dir: str = "asc",
-        category_id: int | None = None,
-        is_active: bool = True,
-    ) -> PaginatedProductResponse:
-        """Obtener lista de productos con filtros  opcionales, ordenamiento y paginación.
+        query_params,
+        pagination,
+        
+    ) :
 
-        Args:
-            skip: Número de registros a saltar (para paginación)
-            limit: Máximo número de productos a devolver
-            search: Término de búsqueda opcional para filtrar por nombre
-            min_price: Precio mínimo opcional para filtrar productos
-            max_price: Precio máximo opcional para filtrar productos
-            order_by: Campo por el cual ordenar los resultados (default: 'id')
-            order_dir: Dirección del orden ('asc' o 'desc', default: 'asc')
-            category_id: ID de categoría opcional para filtrar
-            is_active: Filtrar solo productos activos (default: True)
+        result = await self.product_repo.search_products(query_params, pagination)
+    
+        # Si se solicita total, agregarlo
+        if query_params.include_total and isinstance(result, PaginatedResponse):
+            result.total_count = await self.product_repo.count_products(query_params.filters)
+        
+        return result
 
-        Returns:
-            PaginatedProductResponse: Lista paginada de productos con metadata
-
-        Raises:
-            AppException: Si el campo de ordenamiento no es válido
-        """
-        cursor_id = PaginationHelper.decode_cursor(cursor) if cursor else None
-
-        # Validar parámetros de ordenamiento
-        ALLOWED_ORDER_FIELDS = {
-            "id",
-            "name",
-            "price",
-            "stock",
-            "created_at",
-            "updated_at",
-        }
-        if order_by not in ALLOWED_ORDER_FIELDS:
-            logger.error(
-                f"Invalid order_by field: {order_by}. Allowed fields are: {', '.join(ALLOWED_ORDER_FIELDS)}"
-            )
-            raise AppException(
-                f"Invalid order_by field. Allowed fields are: {', '.join(ALLOWED_ORDER_FIELDS)}",
-                code="invalid_order_field",
-            )
-
-        # Validar dirección de ordenamiento
-        if order_dir.lower() not in ["asc", "desc"]:
-            logger.error(f"Invalid order_dir: {order_dir}. Must be 'asc' or 'desc'")
-            raise AppException(
-                "Invalid order direction. Must be 'asc' or 'desc'",
-                code="invalid_order_direction",
-            )
-        # Crear filtros
-        filters = {
-            "search": search,
-            "min_price": min_price,
-            "max_price": max_price,
-            "category_id": category_id,
-            "is_active": is_active,
-        }
-
-        # Obtener productos con filtros
-        products_db = await self.product_repo.get_cursor_paginated(
-            cursor=cursor_id,
-            limit=limit,
-            filters=filters,
-            order_by=order_by,
-            order_dir=order_dir.lower(),
-        )
-
-        # Obtener total de productos con los mismos filtros
-        total_products = await self.product_repo.count_products_with_filters(filters)
-
-        # Convertir a response objects
-        products = [
-            ProductPublicResponse.model_validate(product) for product in products_db
-        ]
-
-        # Calcular metadata de paginación
-        total_pages = total_products // limit + (1 if total_products % limit > 0 else 0)
-        current_page = skip // limit + 1
-
-        logger.info(
-            f"Retrieved {len(products)} products (page {current_page}/{total_pages}, "
-            f"total: {total_products}) with filters: {filters}"
-        )
-
-        return PaginatedProductResponse(
-            data=products,
-            total_elements=total_products,
-            skip=skip,
-            limit=limit,
-            current_page=current_page,
-            total_pages=total_pages,
-        )
 
     async def create_product(self, product_data) -> ProductPublicResponse:
         product_dict = product_data.model_dump()
