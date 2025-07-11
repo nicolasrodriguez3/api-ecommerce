@@ -39,26 +39,10 @@ class ProductRepository(BaseRepository[Product]):
         result = await self.db.execute(stmt)
         return list(result.scalars().all())
 
-    async def get_multi(
-        self,
-        *,
-        skip: int = 0,
-        limit: int = 100,
-        filters: Dict[str, Any] | None = None,
-        order_by: str | None = None,
-    ) -> List[Product]:
-        result = await self.db.execute(
-            select(Product)
-            .options(selectinload(Product.images))  # Carga eager de images
-            .offset(skip)
-            .limit(limit)
-        )
-        return list(result.scalars().all())
-
     async def get_products_with_filters(
         self,
-        skip: int = 0,
-        limit: int = 10,
+        page: int = 1,
+        per_page: int = 10,
         filters: Dict[str, Any] | None = None,
         order_by: str = "id",
         order_dir: str = "asc",
@@ -118,7 +102,7 @@ class ProductRepository(BaseRepository[Product]):
                 query = query.order_by(asc(column))
 
         # Aplicar paginación
-        query = query.offset(skip).limit(limit)
+        query = query.offset((page - 1) * per_page).limit(per_page)
 
         # Ejecutar query
         result = await self.db.execute(query)

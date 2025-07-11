@@ -3,7 +3,6 @@ from fastapi import APIRouter, Depends, File, Query, UploadFile
 from app.api.dependencies import get_product_service
 from app.auth.dependencies import get_current_user, require_admin
 from app.schemas.product import (
-    PaginatedProductResponse,
     ProductCreate,
     ProductImageResponse,
     ProductImagesResponseList,
@@ -23,8 +22,8 @@ router = APIRouter(prefix="/products", tags=["products"])
     description="Obtiene una lista paginada de productos",
 )
 async def get_products(
-    skip: int = Query(0, ge=0),
-    limit: int = Query(10, ge=1, le=100),
+    page: int = Query(1, ge=1),
+    per_page: int = Query(10, ge=1, le=100),
     search: str | None = Query(None, description="Buscar por nombre"),
     min_price: float | None = Query(None, ge=0),
     max_price: float | None = Query(None, ge=0),
@@ -32,11 +31,11 @@ async def get_products(
     order_dir: str = Query("asc", pattern="^(asc|desc)$"),
     category_id: int | None = Query(None, ge=1),
     product_service: ProductService = Depends(get_product_service),
-) -> PaginatedProductResponse:
+):
     """Obtener lista de productos."""
     return await product_service.get_products(
-        skip=skip,
-        limit=limit,
+        page=page,
+        per_page=per_page,
         search=search,
         min_price=min_price,
         max_price=max_price,

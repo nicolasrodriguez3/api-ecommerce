@@ -7,7 +7,7 @@ from app.schemas.category import (
 )
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.schemas.product import PaginatedProductResponse, ProductPublicResponse
+from app.schemas.product import ProductPublicResponse
 
 logger = setup_logger(__name__)
 
@@ -176,54 +176,7 @@ class CategoryService:
         logger.info(f"Soft deleted category with ID: {category_id}")
         return {"message": "Category deleted successfully", "category_id": category_id}
 
-    async def get_category_products(
-        self,
-        category_id: int,
-        skip: int = 0,
-        limit: int = 10,
-        is_active: bool = True,
-    ) -> PaginatedProductResponse:
-        """Obtener productos de una categoría específica."""
-        # Verificar que la categoría existe
-        category_db = await self.category_repo.get_by_id(category_id)
-        if not category_db:
-            raise NotFoundError("Category", category_id)
 
-        # Obtener productos de la categoría
-        products_db = await self.category_repo.get_category_products(
-            category_id=category_id,
-            skip=skip,
-            limit=limit,
-            is_active=is_active,
-        )
-
-        # Obtener total de productos en la categoría
-        total_products = await self.category_repo.count_products_in_category(
-            category_id, is_active
-        )
-
-        # Convertir a response objects
-        products = [
-            ProductPublicResponse.model_validate(product) for product in products_db
-        ]
-
-        # Calcular metadata de paginación
-        total_pages = total_products // limit + (1 if total_products % limit > 0 else 0)
-        current_page = skip // limit + 1
-
-        logger.info(
-            f"Retrieved {len(products)} products from category {category_id} "
-            f"(page {current_page}/{total_pages}, total: {total_products})"
-        )
-
-        return PaginatedProductResponse(
-            data=products,
-            total_elements=total_products,
-            skip=skip,
-            limit=limit,
-            current_page=current_page,
-            total_pages=total_pages,
-        )
 
     async def _validate_unique_name(self, name: str) -> None:
         """Validar que el nombre de la categoría sea único."""

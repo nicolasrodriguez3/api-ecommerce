@@ -9,7 +9,6 @@ from app.schemas.category import (
     CategoryUpdate,
     PaginatedCategoryResponse,
 )
-from app.schemas.product import PaginatedProductResponse
 from app.services.category import CategoryService
 
 router = APIRouter(prefix="/categories", tags=["Categories"])
@@ -112,24 +111,3 @@ async def delete_category(
     """Eliminar categoría (soft delete)."""
     return await category_service.delete_category(category_id)
 
-
-@router.get(
-    "/{category_id}/products",
-    summary="Obtener productos de una categoría",
-    description="Obtiene una lista paginada de productos que pertenecen a una categoría específica",
-    response_model=PaginatedProductResponse,
-)
-async def get_category_products(
-    category_id: int,
-    skip: int = Query(0, ge=0, description="Número de registros a saltar"),
-    limit: int = Query(10, ge=1, le=100, description="Máximo número de productos a devolver"),
-    is_active: bool = Query(True, description="Filtrar solo productos activos"),
-    category_service: CategoryService = Depends(get_category_service),
-) -> PaginatedProductResponse:
-    """Obtener productos de una categoría específica."""
-    return await category_service.get_category_products(
-        category_id=category_id,
-        skip=skip,
-        limit=limit,
-        is_active=is_active,
-    )

@@ -9,8 +9,8 @@ from app.models.category import Category
 from app.models.product import ProductImage
 from app.repositories.product import ProductRepository
 from app.schemas.category import CategoryPublicResponse
+from app.schemas.common import PaginatedResponse
 from app.schemas.product import (
-    PaginatedProductResponse,
     ProductImageResponse,
     ProductImagesResponseList,
     ProductPublicResponse,
@@ -42,8 +42,8 @@ class ProductService:
 
     async def get_products(
         self,
-        skip: int = 0,
-        limit: int = 10,
+        page: int = 1,
+        per_page: int = 10,
         search: str | None = None,
         min_price: float | None = None,
         max_price: float | None = None,
@@ -51,7 +51,7 @@ class ProductService:
         order_dir: str = "asc",
         category_id: int | None = None,
         is_active: bool = True,
-    ) -> PaginatedProductResponse:
+    ) -> PaginatedResponse[ProductPublicResponse]:
         """Obtener lista de productos con filtros  opcionales, ordenamiento y paginación.
 
         Args:
@@ -108,8 +108,8 @@ class ProductService:
 
         # Obtener productos con filtros
         products_db = await self.product_repo.get_products_with_filters(
-            skip=skip,
-            limit=limit,
+            page=page,
+            per_page=per_page,
             filters=filters,
             order_by=order_by,
             order_dir=order_dir.lower(),
@@ -124,22 +124,25 @@ class ProductService:
         ]
 
         # Calcular metadata de paginación
-        total_pages = total_products // limit + (1 if total_products % limit > 0 else 0)
-        current_page = skip // limit + 1
+        total_pages = total_products // per_page + (1 if total_products % per_page else 0)
+        has_next_page = page < total_pages
+        has_prev_page = page > 1
 
         logger.info(
-            f"Retrieved {len(products)} products (page {current_page}/{total_pages}, "
+            f"Retrieved {len(products)} products (page {page}/{total_pages}, "
             f"total: {total_products}) with filters: {filters}"
         )
-
-        return PaginatedProductResponse(
+        
+        return PaginatedResponse[ProductPublicResponse](
             data=products,
             total_elements=total_products,
-            skip=skip,
-            limit=limit,
-            current_page=current_page,
+            page=page,
+            per_page=per_page,
             total_pages=total_pages,
+            has_next=has_next_page,
+            has_prev=has_prev_page
         )
+            
 
     async def create_product(self, product_data) -> ProductPublicResponse:
         product_dict = product_data.model_dump()
