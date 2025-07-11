@@ -3,12 +3,10 @@ class CursorUtils:
     """Utilidades para manejar cursors"""
 
     @staticmethod
-    def create_cursor(obj_id: int) -> str:
+    def create_cursor(obj_id: int, timestamp: str) -> str:
         """Crea un cursor basado en ID y timestamp."""
         import base64
-        import time
 
-        timestamp = str(int(time.time()))
         cursor_data = f"{obj_id}:{timestamp}"
         return base64.b64encode(cursor_data.encode()).decode()
 

@@ -1,17 +1,15 @@
 from typing import Optional
 from fastapi import APIRouter, Depends, File, Query, UploadFile
 
-from app.api.dependencies import get_product_service, get_product_service2
+from app.api.dependencies import get_product_service2
 from app.auth.dependencies import get_current_user, require_admin
-from app.schemas.common import PaginatedResponse, PaginationParams,SortDirection
+from app.schemas.common import PaginatedResponse, PaginationParams, ProductFilters, ProductQuery, SortDirection
 from app.schemas.product import (
     PaginatedProductResponse,
     ProductCreate,
-    ProductFilters,
     ProductImageResponse,
     ProductImagesResponseList,
     ProductPublicResponse,
-    ProductQuery,
     ProductUpdate,
     UpdateProductImage,
 )
@@ -20,7 +18,7 @@ from app.services.product import ProductService
 
 router = APIRouter(prefix="/products2", tags=["products2"])
 
-@router.get("/products")
+@router.get("/products", response_model=PaginatedResponse[ProductResponse])
 async def get_products(
     # Parámetros de paginación
     cursor: Optional[str] = Query(None, description="Cursor para paginación"),
@@ -67,7 +65,7 @@ async def get_products(
     # Crear filtros
     filters = ProductFilters(
         search=search,
-        is_active=True,
+        is_active=is_active,
         category_id=category_id,
         min_price=min_price,
         max_price=max_price
@@ -83,11 +81,11 @@ async def get_products(
     )
     
     # Ejecutar búsqueda
-    result = await product_service.search_products(query_params, pagination)
+    result = await repo.search_products(query_params, pagination)
     
     # Si se solicita total, agregarlo
     if include_total and isinstance(result, PaginatedResponse):
-        result.total_count = await product_service.get_approximate_count(filters)
+        result.total_count = await repo.get_approximate_count(filters)
     
     return result
 
@@ -98,7 +96,7 @@ async def get_products(
     description="Obtiene un producto por su ID",
 )
 async def get_product(
-    product_id: int, product_service: ProductService = Depends(get_product_service2)
+    product_id: int, product_service: ProductService = Depends(get_product_service)
 ) -> ProductPublicResponse:
     """Obtener producto por ID."""
     return await product_service.get_product_by_id(product_id)
