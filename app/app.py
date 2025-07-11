@@ -81,7 +81,6 @@ register_exception_handlers(app)
 app.include_router(users_router)
 app.include_router(auth_router)
 app.include_router(products_router)
-app.include_router(products2_router)
 app.include_router(categories_router)
 
 

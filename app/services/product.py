@@ -21,9 +21,10 @@ from app.core.cloudinary import (
     delete_image_from_url,
     upload_image as upload_image_service,
 )
-from app.utils.pagination import PaginationHelper
+# from app.utils.pagination import PaginationHelper
 
 from app.services.category import CategoryService
+from app.utils.pagination import CursorUtils
 
 logger = setup_logger(__name__)
 
@@ -54,25 +55,13 @@ class ProductService:
         is_active: bool = True,
     ) -> PaginatedProductResponse:
         """Obtener lista de productos con filtros  opcionales, ordenamiento y paginación.
-
-        Args:
-            skip: Número de registros a saltar (para paginación)
-            limit: Máximo número de productos a devolver
-            search: Término de búsqueda opcional para filtrar por nombre
-            min_price: Precio mínimo opcional para filtrar productos
-            max_price: Precio máximo opcional para filtrar productos
-            order_by: Campo por el cual ordenar los resultados (default: 'id')
-            order_dir: Dirección del orden ('asc' o 'desc', default: 'asc')
-            category_id: ID de categoría opcional para filtrar
-            is_active: Filtrar solo productos activos (default: True)
-
-        Returns:
-            PaginatedProductResponse: Lista paginada de productos con metadata
-
-        Raises:
-            AppException: Si el campo de ordenamiento no es válido
         """
-        cursor_id = PaginationHelper.decode_cursor(cursor) if cursor else None
+        try:
+            cursor_id = CursorUtils.decode_cursor(cursor) if cursor else None
+        except ValueError:
+            logger.error(f"Invalid cursor value: {cursor}")
+            raise AppException("Invalid cursor value", code="invalid_cursor")
+
 
         # Validar parámetros de ordenamiento
         ALLOWED_ORDER_FIELDS = {
@@ -127,7 +116,7 @@ class ProductService:
 
         # Calcular metadata de paginación
         total_pages = total_products // limit + (1 if total_products % limit > 0 else 0)
-        current_page = skip // limit + 1
+        current_page = 0 // limit + 1
 
         logger.info(
             f"Retrieved {len(products)} products (page {current_page}/{total_pages}, "
@@ -137,7 +126,7 @@ class ProductService:
         return PaginatedProductResponse(
             data=products,
             total_elements=total_products,
-            skip=skip,
+            skip=0,
             limit=limit,
             current_page=current_page,
             total_pages=total_pages,
