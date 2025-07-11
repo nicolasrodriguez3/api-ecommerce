@@ -21,7 +21,6 @@ from app.core.cloudinary import (
     delete_image_from_url,
     upload_image as upload_image_service,
 )
-from app.utils.pagination import PaginationHelper
 
 from app.services.category import CategoryService
 
@@ -43,7 +42,7 @@ class ProductService:
 
     async def get_products(
         self,
-        cursor: str | None,
+        skip: int = 0,
         limit: int = 10,
         search: str | None = None,
         min_price: float | None = None,
@@ -72,7 +71,6 @@ class ProductService:
         Raises:
             AppException: Si el campo de ordenamiento no es válido
         """
-        cursor_id = PaginationHelper.decode_cursor(cursor) if cursor else None
 
         # Validar parámetros de ordenamiento
         ALLOWED_ORDER_FIELDS = {
@@ -109,8 +107,8 @@ class ProductService:
         }
 
         # Obtener productos con filtros
-        products_db = await self.product_repo.get_cursor_paginated(
-            cursor=cursor_id,
+        products_db = await self.product_repo.get_products_with_filters(
+            skip=skip,
             limit=limit,
             filters=filters,
             order_by=order_by,

@@ -1,3 +1,4 @@
+from typing import List
 from sqlalchemy import Boolean, DateTime, Float, ForeignKey, String
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from app.models.base import BaseModel
@@ -17,16 +18,21 @@ class Product(BaseModel):
 
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
     is_deleted: Mapped[bool] = mapped_column(Boolean, default=False)
+    
 
     category: Mapped["Category"] = relationship(
         "Category", back_populates="products", lazy="selectin"
     )
-    images: Mapped[list["ProductImage"]] = relationship(
+    images: Mapped[List["ProductImage"]] = relationship(
         "ProductImage",
         back_populates="product",
         cascade="all, delete-orphan",
         lazy="selectin",
     )
+
+    # order_items: Mapped[list["OrderItem"]] = relationship(
+    #     "OrderItem", back_populates="product"
+    # )
 
 
 class ProductImage(BaseModel):

@@ -23,8 +23,8 @@ router = APIRouter(prefix="/products", tags=["products"])
     description="Obtiene una lista paginada de productos",
 )
 async def get_products(
+    skip: int = Query(0, ge=0),
     limit: int = Query(10, ge=1, le=100),
-    cursor: str | None = Query(None),
     search: str | None = Query(None, description="Buscar por nombre"),
     min_price: float | None = Query(None, ge=0),
     max_price: float | None = Query(None, ge=0),
@@ -35,8 +35,8 @@ async def get_products(
 ) -> PaginatedProductResponse:
     """Obtener lista de productos."""
     return await product_service.get_products(
+        skip=skip,
         limit=limit,
-        cursor=cursor,
         search=search,
         min_price=min_price,
         max_price=max_price,

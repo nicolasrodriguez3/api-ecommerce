@@ -39,46 +39,6 @@ class ProductRepository(BaseRepository[Product]):
         result = await self.db.execute(stmt)
         return list(result.scalars().all())
 
-    async def get_cursor_paginated(
-        self,
-        limit: int,
-        cursor: int | None = None,
-        filters: dict = {},
-        order_by: str = "id",
-        order_dir: str = "asc",
-    ) -> List[Product]:
-        stmt = select(Product).options(selectinload(Product.images))
-
-        # Filtros (precio, búsqueda, categoría, etc.)
-        if "search" in filters:
-            stmt = stmt.where(Product.name.ilike(f"%{filters['search']}%"))
-        if "min_price" in filters:
-            stmt = stmt.where(Product.price >= filters["min_price"])
-        if "max_price" in filters:
-            stmt = stmt.where(Product.price <= filters["max_price"])
-        if "category_id" in filters:
-            stmt = stmt.where(Product.category_id == filters["category_id"])
-
-        # Determinar columna de ordenamiento
-        order_column = getattr(Product, order_by, Product.id)
-        
-        # Cursor-based: id > cursor para orden ascendente, < cursor para descendente
-        if cursor:
-            stmt = stmt.where(
-                order_column > cursor if order_dir == "asc" else order_column < cursor
-            )
-
-        
-        # Ordenamiento
-        stmt = stmt.order_by(order_column.asc() if order_dir == "asc" else order_column.desc())
-
-        # Límite + 1 para saber si hay "next"
-        stmt = stmt.limit(limit + 1)
-
-        result = await self.db.execute(stmt)
-        items = list(result.scalars().all())
-        return items
-    
     async def get_multi(
         self,
         *,

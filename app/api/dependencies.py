@@ -15,10 +15,6 @@ def get_product_service(db: AsyncSession = Depends(get_session)) -> ProductServi
     """Dependencia para obtener servicio de productos."""
     return ProductService(db)
 
-def get_product_service2(db: AsyncSession = Depends(get_session)) -> ProductService:
-    """Dependencia para obtener servicio de productos."""
-    return ProductService(db)
-
 
 def get_category_service(db: AsyncSession = Depends(get_session)) -> CategoryService:
     """Dependencia para obtener servicio de productos."""
