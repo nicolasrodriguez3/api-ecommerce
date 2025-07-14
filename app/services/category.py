@@ -2,13 +2,14 @@ from app.core.exceptions import AppException, NotFoundError
 from app.core.logger import setup_logger
 from app.repositories.category import CategoryRepository
 from app.schemas.category import (
+    CategoryFilters,
+    CategoryOrderParams,
     CategoryPublicResponse,
     CategoryQuery,
 )
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.schemas.common import PaginatedResponse, PaginationParams, PaginationRequest
-from app.schemas.product import ProductPublicResponse
+from app.schemas.common import PaginatedResponse, PaginationRequest
 
 logger = setup_logger(__name__)
 
@@ -27,30 +28,24 @@ class CategoryService:
         return CategoryPublicResponse.model_validate(category_db)
 
     async def get_categories(
-        self, query: CategoryQuery,
+        self, filters: CategoryFilters, pagination: PaginationRequest, order: CategoryOrderParams
     ) -> PaginatedResponse[CategoryPublicResponse]:
-        """Obtener lista de categorías con filtros opcionales, ordenamiento y paginación.
-
-        Args:
-            query: Objeto que contiene todos los parámetros de consulta
-
-        Returns:
-            PaginatedResponse: Lista paginada de categorías con metadata
-
-        Raises:
-            AppException: Si hay errores en la consulta
-        """
+        """Obtener lista de categorías con filtros opcionales, ordenamiento y paginación."""
+        query = CategoryQuery.from_request(filters, pagination, order=order)
 
         try:
             # Obtener categorías con filtros
             categories_db = await self.category_repo.get_categories_with_filters(query)
-            
+
             # Obtener total de categorías con los mismos filtros
-            total_categories = await self.category_repo.count_categories_with_filters(query.filters)
+            total_categories = await self.category_repo.count_categories_with_filters(
+                query.filters
+            )
 
             # Convertir a response objects
             categories = [
-                CategoryPublicResponse.model_validate(category) for category in categories_db
+                CategoryPublicResponse.model_validate(category)
+                for category in categories_db
             ]
 
             logger.info(
@@ -80,11 +75,13 @@ class CategoryService:
         await self._validate_unique_name(category_dict["name"])
 
         category_db = await self.category_repo.create(category_dict)
-        
+
         logger.info(f"Created new category with ID: {category_db.id}")
         return CategoryPublicResponse.model_validate(category_db)
 
-    async def update_category(self, category_id: int, category_data) -> CategoryPublicResponse:
+    async def update_category(
+        self, category_id: int, category_data
+    ) -> CategoryPublicResponse:
         """Actualizar categoría existente."""
         # Verificar que la categoría existe
         category_db = await self.category_repo.get_by_id(category_id)
@@ -98,13 +95,13 @@ class CategoryService:
             await self._validate_unique_name(category_dict["name"])
 
         updated_category = await self.category_repo.update(category_id, category_dict)
-        
+
         logger.info(f"Updated category with ID: {category_id}")
         return CategoryPublicResponse.model_validate(updated_category)
 
     async def delete_category(self, category_id: int) -> dict:
         """Eliminar categoría (soft delete).
-        
+
         Validates that the category has no active products before deletion.
         """
         # Verificar que la categoría existe
@@ -113,7 +110,9 @@ class CategoryService:
             raise NotFoundError("Category", category_id)
 
         # Verificar que no tenga productos activos
-        product_count = await self.category_repo.count_active_products_in_category(category_id)
+        product_count = await self.category_repo.count_active_products_in_category(
+            category_id
+        )
         if product_count > 0:
             logger.error(
                 f"Cannot delete category {category_id}: has {product_count} active products"
@@ -126,11 +125,9 @@ class CategoryService:
 
         # Realizar soft delete
         await self.category_repo.category_soft_delete(category_id)
-        
+
         logger.info(f"Soft deleted category with ID: {category_id}")
         return {"message": "Category deleted successfully", "category_id": category_id}
-
-
 
     async def _validate_unique_name(self, name: str) -> None:
         """Validar que el nombre de la categoría sea único."""

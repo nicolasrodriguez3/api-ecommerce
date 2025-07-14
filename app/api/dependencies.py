@@ -3,7 +3,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.database import get_session
 from app.enums.category import CategoryOrderField
 from app.enums.order_direction import OrderDirection
-from app.schemas.category import CategoryFilters
+from app.schemas.category import CategoryFilters, CategoryOrderParams
 from app.schemas.common import PaginationRequest
 from app.services.category import CategoryService
 from app.services.product import ProductService
@@ -38,21 +38,27 @@ def get_category_service(db: AsyncSession = Depends(get_session)) -> CategorySer
 
 def get_category_filters(
     search: str | None = Query(None, description="Buscar por nombre de categoría"),
+    # include_product_count: bool = Query(
+    #     False, description="Incluir conteo de productos por categoría"
+    # ),
+    include_deleted: bool = Query(False, description="Incluir categorías eliminadas"),
+) -> CategoryFilters:
+    return CategoryFilters(
+        search=search,
+        # include_product_count=include_product_count,
+        include_deleted=include_deleted,
+    )
+
+
+def get_category_order(
     order_by: CategoryOrderField = Query(
         CategoryOrderField.ID, description="Campo de ordenamiento"
     ),
     order_dir: OrderDirection = Query(
         OrderDirection.ASC, description="Dirección del orden"
     ),
-    include_product_count: bool = Query(
-        False, description="Incluir conteo de productos por categoría"
-    ),
-    include_deleted: bool = Query(False, description="Incluir categorías eliminadas"),
-) -> CategoryFilters:
-    return CategoryFilters(
-        search=search,
+) -> CategoryOrderParams:
+    return CategoryOrderParams(
         order_by=order_by,
         order_dir=order_dir,
-        include_product_count=include_product_count,
-        include_deleted=include_deleted,
     )

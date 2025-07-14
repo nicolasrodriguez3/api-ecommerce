@@ -82,7 +82,7 @@ class UserService:
             active_only: Solo usuarios activos
 
         Returns:
-            List[UserResponse]: Lista de usuarios
+            PaginatedResponse[UserResponse]: Lista de usuarios
         """
         pagination = PaginationParams.from_request(pagination_request)
 

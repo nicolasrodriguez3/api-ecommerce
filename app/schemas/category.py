@@ -37,7 +37,7 @@ class CategoryPublicResponse(CategoryBase):
     id: int
     created_at: str
     updated_at: str | None = None
-    product_count: int = Field(0, description="Número de productos en la categoría")
+    # product_count: int = Field(0, description="Número de productos en la categoría")
     is_deleted: bool = False
 
     model_config = {
@@ -68,15 +68,10 @@ class CategoryFilters(BaseResponseModel):
     """DTO para filtros de categorías"""
 
     search: str | None = Field(None, description="Buscar por nombre de categoría")
-    order_by: CategoryOrderField = Field(
-        CategoryOrderField.ID, description="Campo de ordenamiento"
-    )
-    order_dir: OrderDirection = Field(
-        OrderDirection.ASC, description="Dirección del orden"
-    )
-    include_product_count: bool = Field(
-        False, description="Incluir conteo de productos por categoría"
-    )
+
+    # include_product_count: bool = Field(
+    # False, description="Incluir conteo de productos por categoría"
+    # )
     include_deleted: bool = Field(False, description="Incluir categorías eliminadas")
 
     @field_validator("search")
@@ -88,15 +83,35 @@ class CategoryFilters(BaseResponseModel):
                     "El término de búsqueda debe tener al menos 2 caracteres"
                 )
         return v
-    
+
+
 class CategoryQuery(BaseResponseModel):
     """DTO unificado para consultas de categorías"""
+
     pagination: PaginationParams
     filters: CategoryFilters
+    order_by: CategoryOrderField
+    order_dir: OrderDirection
 
     @classmethod
-    def from_request(cls, pagination_request: PaginationRequest, filters: CategoryFilters) -> 'CategoryQuery':
+    def from_request(
+        cls,
+        filters: CategoryFilters,
+        pagination_request: PaginationRequest,
+        order: "CategoryOrderParams",
+    ) -> "CategoryQuery":
         return cls(
+            filters=filters,
             pagination=PaginationParams.from_request(pagination_request),
-            filters=filters
+            order_by=order.order_by,
+            order_dir=order.order_dir,
         )
+
+
+class CategoryOrderParams(BaseResponseModel):
+    order_by: CategoryOrderField = Field(
+        CategoryOrderField.ID, description="Campo de ordenamiento"
+    )
+    order_dir: OrderDirection = Field(
+        OrderDirection.ASC, description="Dirección del orden"
+    )

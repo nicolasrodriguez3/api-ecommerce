@@ -2,6 +2,7 @@ from fastapi import APIRouter, Depends, Query
 
 from app.api.dependencies import (
     get_category_filters,
+    get_category_order,
     get_category_service,
     get_pagination_params,
 )
@@ -9,6 +10,7 @@ from app.auth.dependencies import require_admin
 from app.schemas.category import (
     CategoryCreate,
     CategoryFilters,
+    CategoryOrderParams,
     CategoryPublicResponse,
     CategoryPublicResponse,
     CategoryQuery,
@@ -27,13 +29,13 @@ router = APIRouter(prefix="/categories", tags=["Categories"])
     response_model=PaginatedResponse[CategoryPublicResponse],
 )
 async def get_categories(
-    pagination: PaginationRequest = Depends(get_pagination_params),
     filters: CategoryFilters = Depends(get_category_filters),
+    pagination: PaginationRequest = Depends(get_pagination_params),
+    category_order: CategoryOrderParams = Depends(get_category_order),
     category_service: CategoryService = Depends(get_category_service),
 ) -> PaginatedResponse[CategoryPublicResponse]:
     """Obtener lista de categorías con filtros opcionales."""
-    query = CategoryQuery.from_request(pagination, filters)
-    return await category_service.get_categories(query)
+    return await category_service.get_categories(filters, pagination, category_order)
 
 
 @router.get(

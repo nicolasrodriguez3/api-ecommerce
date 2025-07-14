@@ -122,7 +122,7 @@ class ProductService:
         ]
 
         logger.info(
-            f"Retrieved {len(products)} products (page {page}, "
+            f"Retrieved {len(products)} products (page {page}/ per_page {per_page}, "
             f"total: {total_products}) with filters: {filters}"
         )
         

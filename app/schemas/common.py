@@ -2,6 +2,9 @@ import math
 from pydantic import BaseModel, Field, computed_field
 from typing import Generic, List, TypeVar
 
+from app.enums.category import CategoryOrderField
+from app.enums.order_direction import OrderDirection
+
 T = TypeVar("T")
 
 

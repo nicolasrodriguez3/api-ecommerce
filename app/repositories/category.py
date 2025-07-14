@@ -31,7 +31,7 @@ class CategoryRepository(BaseRepository[Category]):
 
         # Aplicar ordenamiento
         stmt = self._apply_ordering(
-            stmt, query.filters.order_by, query.filters.order_dir
+            stmt, query.order_by, query.order_dir
         )
 
         # Aplicar paginación
@@ -55,8 +55,8 @@ class CategoryRepository(BaseRepository[Category]):
         stmt = self._apply_filters(stmt, filters)
 
         # Si necesitamos el conteo de productos, hacer join
-        if filters.include_product_count:
-            stmt = stmt.options(selectinload(Category.products))
+        # if filters.include_product_count:
+        #     stmt = stmt.options(selectinload(Category.products))
 
         return stmt
 
@@ -122,67 +122,3 @@ class CategoryRepository(BaseRepository[Category]):
 
         result = await self.db.execute(stmt)
         return result.scalar_one_or_none()
-
-    async def get_categories_with_product_counts(
-        self,
-        skip: int = 0,
-        limit: int = 10,
-        filters: Dict[str, Any] | None = None,
-        order_by: str = "id",
-        order_dir: str = "asc",
-    ) -> List[Dict[str, Any]]:
-        """Obtener categorías con conteo de productos."""
-        if filters is None:
-            filters = {}
-
-        # Query con LEFT JOIN para obtener conteo de productos
-        stmt = (
-            select(
-                Category.id,
-                Category.name,
-                Category.created_at,
-                Category.updated_at,
-                func.count(Product.id).label("product_count"),
-            )
-            .outerjoin(
-                Product,
-                and_(
-                    Product.category_id == Category.id,
-                    Product.is_deleted == False,
-                    Product.is_active == True,
-                ),
-            )
-            .where(Category.is_deleted == False)
-            .group_by(Category.id)
-        )
-
-        # Aplicar filtros
-        if filters.get("search"):
-            search_term = f"%{filters['search']}%"
-            stmt = stmt.where(Category.name.ilike(search_term))
-
-        # Aplicar ordenamiento
-        if order_by == "product_count":
-            order_column = func.count(Product.id)
-        else:
-            order_column = getattr(Category, order_by)
-
-        if order_dir == "desc":
-            stmt = stmt.order_by(desc(order_column))
-        else:
-            stmt = stmt.order_by(asc(order_column))
-
-        # Aplicar paginación
-        stmt = stmt.offset(skip).limit(limit)
-
-        result = await self.db.execute(stmt)
-        return [
-            {
-                "id": row.id,
-                "name": row.name,
-                "created_at": row.created_at,
-                "updated_at": row.updated_at,
-                "product_count": row.product_count,
-            }
-            for row in result.all()
-        ]
