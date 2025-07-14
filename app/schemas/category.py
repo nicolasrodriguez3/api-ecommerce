@@ -1,7 +1,9 @@
-from typing import List
-from pydantic import Field
+from pydantic import Field, field_validator
 
+from app.enums.category import CategoryOrderField
+from app.enums.order_direction import OrderDirection
 from app.schemas.base import BaseResponseModel
+from app.schemas.common import PaginationParams, PaginationRequest
 
 
 class CategoryBase(BaseResponseModel):
@@ -35,9 +37,7 @@ class CategoryPublicResponse(CategoryBase):
     id: int
     created_at: str
     updated_at: str | None = None
-    product_count: int = Field(
-        0, description="Número de productos en la categoría"
-    )
+    product_count: int = Field(0, description="Número de productos en la categoría")
     is_deleted: bool = False
 
     model_config = {
@@ -53,22 +53,50 @@ class CategoryWithProductCount(CategoryPublicResponse):
     )
 
 
-class PaginatedCategoryResponse(BaseResponseModel):
-    """Esquema de respuesta paginada para categorías."""
-
-    data: list[CategoryPublicResponse]
-    total_elements: int = Field(..., description="Total de elementos en la consulta")
-    skip: int = Field(..., description="Número de elementos saltados")
-    limit: int = Field(..., description="Límite de elementos por página")
-    current_page: int = Field(..., description="Página actual")
-    total_pages: int = Field(..., description="Total de páginas")
-
-
 class CategoryInProduct(BaseResponseModel):
     """Esquema de categoría para incluir en productos."""
+
     id: int
     name: str
 
     model_config = {
         "from_attributes": True,
     }
+
+
+class CategoryFilters(BaseResponseModel):
+    """DTO para filtros de categorías"""
+
+    search: str | None = Field(None, description="Buscar por nombre de categoría")
+    order_by: CategoryOrderField = Field(
+        CategoryOrderField.ID, description="Campo de ordenamiento"
+    )
+    order_dir: OrderDirection = Field(
+        OrderDirection.ASC, description="Dirección del orden"
+    )
+    include_product_count: bool = Field(
+        False, description="Incluir conteo de productos por categoría"
+    )
+    include_deleted: bool = Field(False, description="Incluir categorías eliminadas")
+
+    @field_validator("search")
+    def validate_search(cls, v):
+        if v is not None:
+            v = v.strip()
+            if len(v) < 2:
+                raise ValueError(
+                    "El término de búsqueda debe tener al menos 2 caracteres"
+                )
+        return v
+    
+class CategoryQuery(BaseResponseModel):
+    """DTO unificado para consultas de categorías"""
+    pagination: PaginationParams
+    filters: CategoryFilters
+
+    @classmethod
+    def from_request(cls, pagination_request: PaginationRequest, filters: CategoryFilters) -> 'CategoryQuery':
+        return cls(
+            pagination=PaginationParams.from_request(pagination_request),
+            filters=filters
+        )

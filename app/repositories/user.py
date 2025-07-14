@@ -16,13 +16,13 @@ class UserRepository(BaseRepository[User]):
         super().__init__(db, User)
         self.role_repo = RoleRepository(db)
 
-    async def get_multi(
+    async def get_users(
         self,
         *,
-        skip: int = 0,
+        offset: int = 0,
         limit: int = 100,
         filters: dict | None = None,
-        order_by: str | None = None
+        order_by: str | None = None,
     ) -> List[User]:
         """Obtener múltiples usuarios con filtros y paginación."""
         stmt = select(User).options(selectinload(User.roles))
@@ -30,10 +30,11 @@ class UserRepository(BaseRepository[User]):
         if filters:
             for key, value in filters.items():
                 stmt = stmt.where(getattr(User, key) == value)
+
         if order_by:
             stmt = stmt.order_by(getattr(User, order_by))
 
-        stmt = stmt.offset(skip).limit(limit)
+        stmt = stmt.offset(offset).limit(limit)
         # Ejecutar la consulta y devolver los resultados
         result = await self.db.execute(stmt)
         return list(result.scalars().all())
@@ -50,18 +51,6 @@ class UserRepository(BaseRepository[User]):
         result = await self.db.execute(stmt)
         return result.scalar_one_or_none()
 
-    async def get_active_users(self, *, skip: int = 0, limit: int = 100) -> List[User]:
-        """Obtener usuarios activos."""
-        stmt = (
-            select(User)
-            .options(selectinload(User.roles))
-            .where(User.is_active == True)
-            .offset(skip)
-            .limit(limit)
-        )
-        result = await self.db.execute(stmt)
-        return list(result.scalars().all())
-
     async def create_user(self, user_data: UserCreate, hashed_password: str) -> User:
         """Crea un nuevo usuario"""
         db_user = User(
@@ -77,7 +66,7 @@ class UserRepository(BaseRepository[User]):
                     role_name = UserRole(role_name)
                 except ValueError:
                     raise ValueError(f"Invalid role: {role_name}")
-            
+
             role = await self.role_repo.get_or_create(role_name)
             db_user.roles.append(role)
 

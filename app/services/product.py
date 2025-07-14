@@ -55,8 +55,6 @@ class ProductService:
         """Obtener lista de productos con filtros  opcionales, ordenamiento y paginación.
 
         Args:
-            skip: Número de registros a saltar (para paginación)
-            limit: Máximo número de productos a devolver
             search: Término de búsqueda opcional para filtrar por nombre
             min_price: Precio mínimo opcional para filtrar productos
             max_price: Precio máximo opcional para filtrar productos
@@ -123,13 +121,8 @@ class ProductService:
             ProductPublicResponse.model_validate(product) for product in products_db
         ]
 
-        # Calcular metadata de paginación
-        total_pages = total_products // per_page + (1 if total_products % per_page else 0)
-        has_next_page = page < total_pages
-        has_prev_page = page > 1
-
         logger.info(
-            f"Retrieved {len(products)} products (page {page}/{total_pages}, "
+            f"Retrieved {len(products)} products (page {page}, "
             f"total: {total_products}) with filters: {filters}"
         )
         
@@ -138,9 +131,6 @@ class ProductService:
             total_elements=total_products,
             page=page,
             per_page=per_page,
-            total_pages=total_pages,
-            has_next=has_next_page,
-            has_prev=has_prev_page
         )
             
 

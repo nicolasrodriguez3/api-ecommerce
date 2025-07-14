@@ -98,12 +98,12 @@ class BaseRepository(Generic[ModelType], ABC):
         await self.db.commit()
         return result.rowcount > 0
 
-    async def count(self, include_deleted: bool = False) -> int:
+    async def count(self, filters={}) -> int:
         """Contar entidades."""
         stmt = select(func.count(self.model.id))
-
-        if not include_deleted and hasattr(self.model, "is_deleted"):
-            stmt = stmt.where(getattr(self.model, "is_deleted") == False)
+        if filters:
+            for key, value in filters.items():
+                stmt = stmt.where(getattr(self.model, key) == value)
 
         result = await self.db.execute(stmt)
         result = result.scalar()
@@ -112,9 +112,9 @@ class BaseRepository(Generic[ModelType], ABC):
     async def exists(self, entity_id: int) -> bool:
         """Verificar si existe una entidad."""
         stmt = select(self.model.id).where(self.model.id == entity_id)
-        
+
         if hasattr(self.model, "is_deleted"):
             stmt = stmt.where(getattr(self.model, "is_deleted") == False)
-            
+
         result = await self.db.execute(stmt)
         return result.scalar_one_or_none() is not None

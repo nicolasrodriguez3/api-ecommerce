@@ -1,14 +1,20 @@
 from fastapi import APIRouter, Depends, Query
 
-from app.api.dependencies import get_category_service
+from app.api.dependencies import (
+    get_category_filters,
+    get_category_service,
+    get_pagination_params,
+)
 from app.auth.dependencies import require_admin
 from app.schemas.category import (
     CategoryCreate,
+    CategoryFilters,
     CategoryPublicResponse,
     CategoryPublicResponse,
+    CategoryQuery,
     CategoryUpdate,
-    PaginatedCategoryResponse,
 )
+from app.schemas.common import PaginatedResponse, PaginationRequest
 from app.services.category import CategoryService
 
 router = APIRouter(prefix="/categories", tags=["Categories"])
@@ -18,38 +24,17 @@ router = APIRouter(prefix="/categories", tags=["Categories"])
     "/",
     summary="Listar categorías",
     description="Obtiene una lista paginada de categorías con filtros opcionales",
-    response_model=PaginatedCategoryResponse,
+    response_model=PaginatedResponse[CategoryPublicResponse],
 )
 async def get_categories(
-    skip: int = Query(0, ge=0, description="Número de registros a saltar"),
-    limit: int = Query(
-        10, ge=1, le=100, description="Máximo número de categorías a devolver"
-    ),
-    search: str | None = Query(None, description="Buscar por nombre de categoría"),
-    order_by: str = Query(
-        "id", description="Campo de ordenamiento (id, name, created_at, updated_at)"
-    ),
-    order_dir: str = Query(
-        "asc", pattern="^(asc|desc)$", description="Dirección del orden"
-    ),
-    include_product_count: bool = Query(
-        False, description="Incluir conteo de productos por categoría"
-    ),
-    include_deleted: bool = Query(
-        False, description="Incluir categorias eliminadas"
-    ),
+    pagination: PaginationRequest = Depends(get_pagination_params),
+    filters: CategoryFilters = Depends(get_category_filters),
     category_service: CategoryService = Depends(get_category_service),
-) -> PaginatedCategoryResponse:
+) -> PaginatedResponse[CategoryPublicResponse]:
     """Obtener lista de categorías con filtros opcionales."""
-    return await category_service.get_categories(
-        skip=skip,
-        limit=limit,
-        search=search,
-        order_by=order_by,
-        order_dir=order_dir,
-        include_product_count=include_product_count,
-        include_deleted=include_deleted,
-    )
+    query = CategoryQuery.from_request(pagination, filters)
+    return await category_service.get_categories(query)
+
 
 @router.get(
     "/{category_id}",
@@ -75,7 +60,7 @@ async def get_category(
 async def create_category(
     category_data: CategoryCreate,
     category_service: CategoryService = Depends(get_category_service),
-    current_user = Depends(require_admin),  # Solo administradores pueden crear categorías
+    current_user=Depends(require_admin),  # Solo administradores pueden crear categorías
 ) -> CategoryPublicResponse:
     """Crear nueva categoría."""
     return await category_service.create_category(category_data)
@@ -91,7 +76,9 @@ async def update_category(
     category_id: int,
     category_data: CategoryUpdate,
     category_service: CategoryService = Depends(get_category_service),
-    current_user = Depends(require_admin),  # Solo administradores pueden actualizar categorías
+    current_user=Depends(
+        require_admin
+    ),  # Solo administradores pueden actualizar categorías
 ) -> CategoryPublicResponse:
     """Actualizar categoría existente."""
     return await category_service.update_category(category_id, category_data)
@@ -106,8 +93,9 @@ async def update_category(
 async def delete_category(
     category_id: int,
     category_service: CategoryService = Depends(get_category_service),
-    current_user = Depends(require_admin),  # Solo administradores pueden eliminar categorías
+    current_user=Depends(
+        require_admin
+    ),  # Solo administradores pueden eliminar categorías
 ) -> dict[str, str | int]:
     """Eliminar categoría (soft delete)."""
     return await category_service.delete_category(category_id)
-

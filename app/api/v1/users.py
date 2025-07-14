@@ -1,6 +1,6 @@
 from typing import List
 from fastapi import APIRouter, Depends, HTTPException, status, Query
-from app.api.dependencies import get_user_service
+from app.api.dependencies import get_pagination_params, get_user_service
 from app.auth.dependencies import (
     CurrentUser,
     PermissionChecker,
@@ -9,6 +9,7 @@ from app.auth.dependencies import (
 )
 from app.core.exceptions import NotFoundError, AlreadyExistsError, ValidationError
 from app.models.user import User, UserRole
+from app.schemas.common import PaginatedResponse, PaginationRequest
 from app.schemas.user import UserCreate, UserUpdate, UserResponse
 from app.services.user import UserService
 
@@ -17,18 +18,16 @@ router = APIRouter(prefix="/users", tags=["users"])
 
 @router.get(
     "/",
-    response_model=List[UserResponse],
     summary="Listar usuarios",
     description="Obtiene una lista paginada de usuarios",
 )
 async def get_users(
-    skip: int = Query(0, ge=0, description="Registros a saltar"),
-    limit: int = Query(100, ge=1, le=1000, description="Límite de registros"),
+    pagination_request: PaginationRequest = Depends(get_pagination_params),
     active_only: bool = Query(False, description="Solo usuarios activos"),
     user_service: UserService = Depends(get_user_service),
-) -> List[UserResponse]:
+) -> PaginatedResponse[UserResponse]:
     """Obtener lista de usuarios."""
-    return await user_service.get_users(skip=skip, limit=limit, active_only=active_only)
+    return await user_service.get_users(pagination_request=pagination_request, active_only=active_only)
 
 
 @router.get(

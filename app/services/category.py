@@ -3,10 +3,11 @@ from app.core.logger import setup_logger
 from app.repositories.category import CategoryRepository
 from app.schemas.category import (
     CategoryPublicResponse,
-    PaginatedCategoryResponse,
+    CategoryQuery,
 )
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.schemas.common import PaginatedResponse, PaginationParams, PaginationRequest
 from app.schemas.product import ProductPublicResponse
 
 logger = setup_logger(__name__)
@@ -26,97 +27,50 @@ class CategoryService:
         return CategoryPublicResponse.model_validate(category_db)
 
     async def get_categories(
-        self,
-        skip: int = 0,
-        limit: int = 10,
-        search: str | None = None,
-        order_by: str = "id",
-        order_dir: str = "asc",
-        include_product_count: bool = False,
-        include_deleted: bool = False,
-    ) -> PaginatedCategoryResponse:
+        self, query: CategoryQuery,
+    ) -> PaginatedResponse[CategoryPublicResponse]:
         """Obtener lista de categorías con filtros opcionales, ordenamiento y paginación.
 
         Args:
-            skip: Número de registros a saltar (para paginación)
-            limit: Máximo número de categorías a devolver
-            search: Término de búsqueda opcional para filtrar por nombre
-            order_by: Campo por el cual ordenar los resultados (default: 'id')
-            order_dir: Dirección del orden ('asc' o 'desc', default: 'asc')
-            include_product_count: Incluir conteo de productos por categoría
+            query: Objeto que contiene todos los parámetros de consulta
 
         Returns:
-            PaginatedCategoryResponse: Lista paginada de categorías con metadata
+            PaginatedResponse: Lista paginada de categorías con metadata
 
         Raises:
-            AppException: Si el campo de ordenamiento no es válido
+            AppException: Si hay errores en la consulta
         """
 
-        # Validar parámetros de ordenamiento
-        ALLOWED_ORDER_FIELDS = {
-            "id",
-            "name",
-            "created_at",
-            "updated_at",
-        }
-        if order_by not in ALLOWED_ORDER_FIELDS:
-            logger.error(
-                f"Invalid order_by field: {order_by}. Allowed fields are: {', '.join(ALLOWED_ORDER_FIELDS)}"
+        try:
+            # Obtener categorías con filtros
+            categories_db = await self.category_repo.get_categories_with_filters(query)
+            
+            # Obtener total de categorías con los mismos filtros
+            total_categories = await self.category_repo.count_categories_with_filters(query.filters)
+
+            # Convertir a response objects
+            categories = [
+                CategoryPublicResponse.model_validate(category) for category in categories_db
+            ]
+
+            logger.info(
+                f"Retrieved {len(categories)} categories (page {query.pagination.page}, "
+                f"total: {total_categories}) with filters: {query.filters.model_dump(exclude_none=True)}"
             )
+
+            return PaginatedResponse(
+                data=categories,
+                total_elements=total_categories,
+                page=query.pagination.page,
+                per_page=query.pagination.per_page,
+            )
+
+        except Exception as e:
+            logger.error(f"Error retrieving categories: {str(e)}")
             raise AppException(
-                f"Invalid order_by field. Allowed fields are: {', '.join(ALLOWED_ORDER_FIELDS)}",
-                code="invalid_order_field",
-            )
-
-        # Validar dirección de ordenamiento
-        if order_dir.lower() not in ["asc", "desc"]:
-            logger.error(f"Invalid order_dir: {order_dir}. Must be 'asc' or 'desc'")
-            raise AppException(
-                "Invalid order direction. Must be 'asc' or 'desc'",
-                code="invalid_order_direction",
-            )
-
-        # Crear filtros
-        filters = {
-            "search": search,
-        }
-
-        # Obtener categorías con filtros
-        categories_db = await self.category_repo.get_categories_with_filters(
-            skip=skip,
-            limit=limit,
-            filters=filters,
-            order_by=order_by,
-            order_dir=order_dir.lower(),
-            include_product_count=include_product_count,
-            include_deleted=include_deleted,
-        )
-
-        # Obtener total de categorías con los mismos filtros
-        total_categories = await self.category_repo.count_categories_with_filters(filters, include_deleted=include_deleted,)
-
-        # Convertir a response objects
-        categories = [
-            CategoryPublicResponse.model_validate(category) for category in categories_db
-        ]
-
-        # Calcular metadata de paginación
-        total_pages = total_categories // limit + (1 if total_categories % limit > 0 else 0)
-        current_page = skip // limit + 1
-
-        logger.info(
-            f"Retrieved {len(categories)} categories (page {current_page}/{total_pages}, "
-            f"total: {total_categories}) with filters: {filters}"
-        )
-
-        return PaginatedCategoryResponse(
-            data=categories,
-            total_elements=total_categories,
-            skip=skip,
-            limit=limit,
-            current_page=current_page,
-            total_pages=total_pages,
-        )
+                "Error al obtener categorías",
+                code="categories_retrieval_error",
+            ) from e
 
     async def create_category(self, category_data) -> CategoryPublicResponse:
         """Crear nueva categoría."""
